@@ -394,12 +394,18 @@ Use this context to answer questions when relevant.
         ).first()
         
         if not usage:
-            usage = UsageRecord(client_id=client.id, date=today)
+            usage = UsageRecord(
+                client_id=client.id,
+                date=today,
+                message_count=0,
+                token_count=0,
+                rag_query_count=0
+            )
             db.add(usage)
         
-        usage.message_count += 1
+        usage.message_count = (usage.message_count or 0) + 1
         # Estimate tokens (rough approximation)
-        usage.token_count += len(request.message.split()) + len(response_text.split())
+        usage.token_count = (usage.token_count or 0) + len(request.message.split()) + len(response_text.split())
         
         db.commit()
         
