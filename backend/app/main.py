@@ -262,7 +262,7 @@ Guidelines:
                     UsageRecord.date == today
                 ).first()
                 if usage:
-                    usage.rag_query_count += 1
+                    usage.rag_query_count = (usage.rag_query_count or 0) + 1
         except Exception as e:
             print(f"RAG retrieval error: {e}")
             rag_context = ""
