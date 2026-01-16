@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     chroma_persist_directory: str = "./chroma_data"
     
     # Widget CDN URL (where widget.js is hosted)
-    widget_cdn_url: str = "https://snip.yourdomain.com"
+    widget_cdn_url: str = "https://widget-sigma-sage.vercel.app"
 
 
 @lru_cache()

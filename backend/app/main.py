@@ -434,6 +434,7 @@ async def get_embed_snippet(
     snippet_html = f'''<script 
   src="{settings.widget_cdn_url}/widget.js" 
   data-client-id="{client.id}"
+  data-api-url="https://snip-production.up.railway.app"
   async>
 </script>'''
     
