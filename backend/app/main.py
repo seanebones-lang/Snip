@@ -139,24 +139,8 @@ async def get_config(
     if not client.config:
         raise HTTPException(status_code=404, detail="Config not found")
     
-    # Create response, hiding actual API key
-    config_dict = {
-        "bot_name": client.config.bot_name,
-        "logo_url": client.config.logo_url,
-        "primary_color": client.config.primary_color,
-        "secondary_color": client.config.secondary_color,
-        "background_color": client.config.background_color,
-        "text_color": client.config.text_color,
-        "welcome_message": client.config.welcome_message,
-        "placeholder_text": client.config.placeholder_text,
-        "system_prompt": client.config.system_prompt,
-        "position": client.config.position,
-        "auto_open": client.config.auto_open,
-        "show_branding": client.config.show_branding,
-        "allowed_domains": client.config.allowed_domains,
-        "xai_api_key_set": bool(getattr(client.config, 'xai_api_key', None))
-    }
-    return ConfigResponse(**config_dict)
+    # Use from_orm to hide actual API key
+    return ConfigResponse.from_orm(client.config)
 
 
 @app.patch("/api/config", response_model=ConfigResponse)
@@ -177,24 +161,8 @@ async def update_config(
     db.commit()
     db.refresh(client.config)
     
-    # Create response, hiding actual API key
-    config_dict = {
-        "bot_name": client.config.bot_name,
-        "logo_url": client.config.logo_url,
-        "primary_color": client.config.primary_color,
-        "secondary_color": client.config.secondary_color,
-        "background_color": client.config.background_color,
-        "text_color": client.config.text_color,
-        "welcome_message": client.config.welcome_message,
-        "placeholder_text": client.config.placeholder_text,
-        "system_prompt": client.config.system_prompt,
-        "position": client.config.position,
-        "auto_open": client.config.auto_open,
-        "show_branding": client.config.show_branding,
-        "allowed_domains": client.config.allowed_domains,
-        "xai_api_key_set": bool(getattr(client.config, 'xai_api_key', None))
-    }
-    return ConfigResponse(**config_dict)
+    # Use from_orm to hide actual API key
+    return ConfigResponse.from_orm(client.config)
 
 
 @app.get("/api/widget/config/{client_id}", response_model=WidgetConfig)
@@ -308,17 +276,57 @@ RELEVANT CONTEXT FROM COMPANY DOCUMENTS:
 Use this context to answer questions when relevant.
 """
     
-    # Get xAI API key - use client's key if set, otherwise fallback to global
+    # Get AI provider configuration - use client's settings if set, otherwise fallback to global
     api_key = None
-    if config.xai_api_key:
+    provider = None
+    model = None
+    
+    # Check client's AI configuration first
+    if config.ai_api_key:
+        api_key = config.ai_api_key
+        provider = config.ai_provider or 'xai'  # Default to xAI if not specified
+        model = config.ai_model or 'grok-3-fast'  # Default model based on provider
+    # Fallback to legacy xai_api_key if present
+    elif hasattr(config, 'xai_api_key') and config.xai_api_key:
         api_key = config.xai_api_key
+        provider = 'xai'
+        model = 'grok-3-fast'
+    # Fallback to global settings
     elif settings.xai_api_key:
         api_key = settings.xai_api_key
+        provider = 'xai'
+        model = 'grok-3-fast'
     
     if not api_key:
         raise HTTPException(
             status_code=500, 
-            detail="AI service not configured. Please add your xAI API key in the dashboard settings."
+            detail="AI service not configured. Please add your AI API key in the dashboard settings."
+        )
+    
+    # Normalize provider name
+    provider = (provider or 'xai').lower()
+    
+    # Determine API endpoint and model defaults based on provider
+    api_url = None
+    default_models = {
+        'xai': 'grok-3-fast',
+        'openai': 'gpt-4',
+        'anthropic': 'claude-3-opus-20240229'
+    }
+    
+    if provider == 'xai':
+        api_url = "https://api.x.ai/v1/chat/completions"
+        model = model or default_models['xai']
+    elif provider == 'openai':
+        api_url = "https://api.openai.com/v1/chat/completions"
+        model = model or default_models['openai']
+    elif provider == 'anthropic':
+        api_url = "https://api.anthropic.com/v1/messages"
+        model = model or default_models['anthropic']
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported AI provider: {provider}. Supported providers: xai, openai, anthropic"
         )
     
     try:
@@ -327,31 +335,56 @@ Use this context to answer questions when relevant.
             "Content-Type": "application/json"
         }
         
-        payload = {
-            "model": "grok-3-fast",
-            "messages": [
-                {"role": "system", "content": base_prompt},
-                {"role": "user", "content": request.message}
-            ],
-            "max_tokens": 500,
-            "temperature": 0.7
-        }
+        if provider == 'anthropic':
+            # Anthropic uses a different API format
+            payload = {
+                "model": model,
+                "max_tokens": 500,
+                "system": base_prompt,
+                "messages": [
+                    {"role": "user", "content": request.message}
+                ]
+            }
+            headers["x-api-key"] = api_key
+            headers.pop("Authorization", None)
+        else:
+            # OpenAI and xAI use the same format
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": base_prompt},
+                    {"role": "user", "content": request.message}
+                ],
+                "max_tokens": 500,
+                "temperature": 0.7
+            }
         
         response = requests.post(
-            "https://api.x.ai/v1/chat/completions",
+            api_url,
             headers=headers,
             json=payload,
             timeout=30
         )
         
         if response.status_code != 200:
+            error_detail = "AI service error"
+            try:
+                error_data = response.json()
+                error_detail = error_data.get("error", {}).get("message", error_detail)
+            except:
+                pass
             raise HTTPException(
                 status_code=502,
-                detail="AI service error"
+                detail=error_detail
             )
         
         result = response.json()
-        response_text = result["choices"][0]["message"]["content"]
+        
+        # Extract response text based on provider format
+        if provider == 'anthropic':
+            response_text = result["content"][0]["text"]
+        else:
+            response_text = result["choices"][0]["message"]["content"]
         
         # Track usage
         today = date.today()

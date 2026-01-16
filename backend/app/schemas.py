@@ -60,7 +60,9 @@ class ConfigUpdate(BaseModel):
     auto_open: Optional[bool] = None
     show_branding: Optional[bool] = None
     allowed_domains: Optional[List[str]] = None
-    xai_api_key: Optional[str] = Field(None, description="Your xAI API key (bring your own key)")
+    ai_provider: Optional[str] = Field(None, description="AI provider: 'xai', 'openai', 'anthropic'")
+    ai_api_key: Optional[str] = Field(None, description="Your AI API key (bring your own key)")
+    ai_model: Optional[str] = Field(None, description="AI model to use (e.g., 'grok-3-fast', 'gpt-4', 'claude-3')")
 
 
 class ConfigResponse(BaseModel):
@@ -78,10 +80,25 @@ class ConfigResponse(BaseModel):
     auto_open: bool
     show_branding: bool
     allowed_domains: List[str]
-    xai_api_key_set: bool = Field(default=False, description="Whether xAI API key is configured (never returns actual key)")
+    ai_provider: Optional[str] = Field(None, description="AI provider selected")
+    ai_model: Optional[str] = Field(None, description="AI model selected")
+    ai_api_key_set: bool = Field(default=False, description="Whether AI API key is configured (never returns actual key)")
     
     class Config:
         from_attributes = True
+    
+    @classmethod
+    def from_orm(cls, obj):
+        """Create response from ORM object, hiding actual API key"""
+        data = obj.__dict__.copy()
+        data['ai_api_key_set'] = bool(obj.ai_api_key) # Set flag based on key presence
+        data.pop('ai_api_key', None) # Remove actual key from response
+        # Handle legacy xai_api_key field if present
+        if hasattr(obj, 'xai_api_key') and obj.xai_api_key and not obj.ai_api_key:
+            data['ai_provider'] = data.get('ai_provider') or 'xai'
+            data['ai_api_key_set'] = True
+        data.pop('xai_api_key', None) # Remove legacy field if present
+        return cls(**data)
 
 
 class WidgetConfig(BaseModel):

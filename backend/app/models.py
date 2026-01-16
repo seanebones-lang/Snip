@@ -87,8 +87,10 @@ class ClientConfig(Base):
     # AI Customization
     system_prompt = Column(Text, nullable=True)  # Additional instructions for the AI
     
-    # API Keys (encrypted/hashed for security)
-    xai_api_key = Column(Text, nullable=True)  # Customer's own xAI API key (encrypted)
+    # AI Provider Configuration (BYOK - Bring Your Own Key)
+    ai_provider = Column(String(50), nullable=True)  # 'xai', 'openai', 'anthropic', etc.
+    ai_api_key = Column(Text, nullable=True)  # Customer's own AI API key (encrypted)
+    ai_model = Column(String(100), nullable=True)  # e.g., 'grok-3-fast', 'gpt-4', 'claude-3'
     
     # Widget behavior
     position = Column(String(20), default="bottom-right", nullable=False)  # bottom-right, bottom-left

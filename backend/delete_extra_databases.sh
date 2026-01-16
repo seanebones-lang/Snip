@@ -1,0 +1,25 @@
+#!/bin/bash
+# Script to help identify and delete extra PostgreSQL databases
+# Railway CLI doesn't have direct delete, so this provides instructions
+
+echo "=========================================="
+echo "DELETING EXTRA DATABASES - INSTRUCTIONS"
+echo "=========================================="
+echo ""
+echo "Railway CLI doesn't support deleting services directly."
+echo "You need to delete them via Railway Dashboard:"
+echo ""
+echo "1. Go to: https://railway.app/project/02602f57-7c35-468a-abb3-678af0f43fe1"
+echo "2. You'll see all services (including multiple PostgreSQL services)"
+echo "3. For EACH extra PostgreSQL service:"
+echo "   - Click on the PostgreSQL service"
+echo "   - Click 'Settings' tab"
+echo "   - Scroll down and click 'Delete Service'"
+echo "   - Confirm deletion"
+echo ""
+echo "4. Keep ONLY ONE PostgreSQL service"
+echo ""
+echo "5. After deleting extras, verify DATABASE_URL is set:"
+echo "   railway variables | grep DATABASE_URL"
+echo ""
+echo "=========================================="
