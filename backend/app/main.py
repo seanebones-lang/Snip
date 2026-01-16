@@ -138,7 +138,25 @@ async def get_config(
     """Get client configuration (requires API key)"""
     if not client.config:
         raise HTTPException(status_code=404, detail="Config not found")
-    return client.config
+    
+    # Create response, hiding actual API key
+    config_dict = {
+        "bot_name": client.config.bot_name,
+        "logo_url": client.config.logo_url,
+        "primary_color": client.config.primary_color,
+        "secondary_color": client.config.secondary_color,
+        "background_color": client.config.background_color,
+        "text_color": client.config.text_color,
+        "welcome_message": client.config.welcome_message,
+        "placeholder_text": client.config.placeholder_text,
+        "system_prompt": client.config.system_prompt,
+        "position": client.config.position,
+        "auto_open": client.config.auto_open,
+        "show_branding": client.config.show_branding,
+        "allowed_domains": client.config.allowed_domains,
+        "xai_api_key_set": bool(getattr(client.config, 'xai_api_key', None))
+    }
+    return ConfigResponse(**config_dict)
 
 
 @app.patch("/api/config", response_model=ConfigResponse)
@@ -158,8 +176,25 @@ async def update_config(
     
     db.commit()
     db.refresh(client.config)
-    # Use from_orm to hide actual API key
-    return ConfigResponse.from_orm(client.config)
+    
+    # Create response, hiding actual API key
+    config_dict = {
+        "bot_name": client.config.bot_name,
+        "logo_url": client.config.logo_url,
+        "primary_color": client.config.primary_color,
+        "secondary_color": client.config.secondary_color,
+        "background_color": client.config.background_color,
+        "text_color": client.config.text_color,
+        "welcome_message": client.config.welcome_message,
+        "placeholder_text": client.config.placeholder_text,
+        "system_prompt": client.config.system_prompt,
+        "position": client.config.position,
+        "auto_open": client.config.auto_open,
+        "show_branding": client.config.show_branding,
+        "allowed_domains": client.config.allowed_domains,
+        "xai_api_key_set": bool(getattr(client.config, 'xai_api_key', None))
+    }
+    return ConfigResponse(**config_dict)
 
 
 @app.get("/api/widget/config/{client_id}", response_model=WidgetConfig)

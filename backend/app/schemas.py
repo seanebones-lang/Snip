@@ -82,27 +82,6 @@ class ConfigResponse(BaseModel):
     
     class Config:
         from_attributes = True
-    
-    @classmethod
-    def from_orm(cls, obj):
-        """Create response from ORM object, hiding actual API key"""
-        data = {
-            "bot_name": obj.bot_name,
-            "logo_url": obj.logo_url,
-            "primary_color": obj.primary_color,
-            "secondary_color": obj.secondary_color,
-            "background_color": obj.background_color,
-            "text_color": obj.text_color,
-            "welcome_message": obj.welcome_message,
-            "placeholder_text": obj.placeholder_text,
-            "system_prompt": obj.system_prompt,
-            "position": obj.position,
-            "auto_open": obj.auto_open,
-            "show_branding": obj.show_branding,
-            "allowed_domains": obj.allowed_domains,
-            "xai_api_key_set": bool(obj.xai_api_key) if hasattr(obj, 'xai_api_key') else False
-        }
-        return cls(**data)
 
 
 class WidgetConfig(BaseModel):

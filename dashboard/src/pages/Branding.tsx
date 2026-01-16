@@ -320,6 +320,86 @@ function Branding({ apiKey }: BrandingProps) {
               </p>
             </div>
           </div>
+
+          <div className="card">
+            <h2 className="card-title">API Keys</h2>
+            
+            <div className="form-group">
+              <label className="form-label">xAI API Key (Bring Your Own Key)</label>
+              <div style={{ marginBottom: 8 }}>
+                <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 12 }}>
+                  Enter your own xAI API key to use your own credits. If not set, the service will use a shared key (if available).
+                </p>
+                {config.xai_api_key_set && (
+                  <div className="alert alert-success" style={{ marginBottom: 12, padding: '12px 16px' }}>
+                    ✓ xAI API key is configured
+                  </div>
+                )}
+              </div>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showXaiKey ? "text" : "password"}
+                  className="form-input"
+                  value={xaiApiKey}
+                  onChange={(e) => setXaiApiKey(e.target.value)}
+                  placeholder={config.xai_api_key_set ? "Enter new key to update..." : "xai-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}
+                  style={{ paddingRight: 100 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowXaiKey(!showXaiKey)}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    padding: '4px 8px'
+                  }}
+                >
+                  {showXaiKey ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>
+                Get your xAI API key from <a href="https://console.x.ai" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>console.x.ai</a>. 
+                This key is stored securely and only used for your chatbot requests.
+              </p>
+              {xaiApiKey && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/config', {
+                        method: 'PATCH',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'X-API-Key': apiKey
+                        },
+                        body: JSON.stringify({ xai_api_key: xaiApiKey })
+                      })
+                      if (res.ok) {
+                        const updated = await res.json()
+                        setConfig(updated)
+                        setXaiApiKey('')
+                        setSaved(true)
+                        setTimeout(() => setSaved(false), 3000)
+                      }
+                    } catch (error) {
+                      console.error('Failed to save API key:', error)
+                    }
+                  }}
+                  style={{ marginTop: 8 }}
+                >
+                  Save xAI API Key
+                </button>
+              )}
+            </div>
+          </div>
           
           <div className="card">
             <h2 className="card-title">Widget Settings</h2>
