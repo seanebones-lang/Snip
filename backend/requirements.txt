@@ -23,4 +23,5 @@ tiktoken==0.5.2
 
 # Utilities
 aiofiles==23.2.1
+mangum==0.17.0  # ASGI adapter for Vercel/Lambda serverless functions
 # Note: uuid is part of Python standard library, no need to install
