@@ -26,6 +26,7 @@ function Branding({ apiKey }: BrandingProps) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
     const fetchConfig = async () => {
@@ -34,9 +35,17 @@ function Branding({ apiKey }: BrandingProps) {
           headers: { 'X-API-Key': apiKey }
         })
         if (res.ok) {
-          setConfig(await res.json())
+          const data = await res.json()
+          setConfig(data)
+          setError(null)
+        } else {
+          const errorData = await res.json().catch(() => ({}))
+          setError(errorData.detail || `Failed to load config (${res.status})`)
+          console.error('Failed to fetch config:', res.status, errorData)
         }
       } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Network error'
+        setError(errorMsg)
         console.error('Failed to fetch config:', error)
       } finally {
         setLoading(false)
@@ -77,11 +86,58 @@ function Branding({ apiKey }: BrandingProps) {
   }
   
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div>
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>
+            Branding
+          </h1>
+          <p style={{ color: 'var(--text-muted)' }}>
+            Loading branding configuration...
+          </p>
+        </div>
+        <div className="card">
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+            Loading...
+          </div>
+        </div>
+      </div>
+    )
   }
   
+  if (!config && error) {
+    return (
+      <div>
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>
+            Branding
+          </h1>
+          <p style={{ color: 'var(--text-muted)' }}>
+            Customize how your chatbot looks and feels.
+          </p>
+        </div>
+        <div className="alert alert-warning">
+          <strong>Error loading configuration:</strong> {error}
+          <br />
+          <span style={{ fontSize: 12 }}>The backend may still be deploying. Please try again in a moment.</span>
+        </div>
+      </div>
+    )
+  }
+
   if (!config) {
-    return <div>Failed to load configuration</div>
+    return (
+      <div>
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>
+            Branding
+          </h1>
+          <p style={{ color: 'var(--text-muted)' }}>
+            Failed to load configuration
+          </p>
+        </div>
+      </div>
+    )
   }
   
   return (

@@ -15,6 +15,7 @@ function Snippet({ apiKey }: SnippetProps) {
   const [snippet, setSnippet] = useState<SnippetData | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
     const fetchSnippet = async () => {
@@ -23,9 +24,17 @@ function Snippet({ apiKey }: SnippetProps) {
           headers: { 'X-API-Key': apiKey }
         })
         if (res.ok) {
-          setSnippet(await res.json())
+          const data = await res.json()
+          setSnippet(data)
+          setError(null)
+        } else {
+          const errorData = await res.json().catch(() => ({}))
+          setError(errorData.detail || `Failed to load snippet (${res.status})`)
+          console.error('Failed to fetch snippet:', res.status, errorData)
         }
       } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Network error'
+        setError(errorMsg)
         console.error('Failed to fetch snippet:', error)
       } finally {
         setLoading(false)
@@ -36,15 +45,46 @@ function Snippet({ apiKey }: SnippetProps) {
   }, [apiKey])
   
   const handleCopy = () => {
-    if (!snippet) return
-    navigator.clipboard.writeText(snippet.html)
+    const codeToCopy = snippet?.html || `<script 
+  src="https://widget-sigma-sage.vercel.app/widget.js" 
+  data-client-id="YOUR_CLIENT_ID"
+  data-api-url="https://snip-production.up.railway.app"
+  async>
+</script>`
+    if (!codeToCopy) return
+    navigator.clipboard.writeText(codeToCopy)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
   
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div>
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>
+            Embed Snippet
+          </h1>
+          <p style={{ color: 'var(--text-muted)' }}>
+            Copy this code and paste it into your website's HTML, just before the closing &lt;/body&gt; tag.
+          </p>
+        </div>
+        <div className="card">
+          <div className="code-block">
+            <pre>Loading embed code...</pre>
+          </div>
+        </div>
+      </div>
+    )
   }
+
+  // Generate fallback snippet if API failed
+  const displaySnippet = snippet?.html || error ? 
+    `<script 
+  src="https://widget-sigma-sage.vercel.app/widget.js" 
+  data-client-id="YOUR_CLIENT_ID"
+  data-api-url="https://snip-production.up.railway.app"
+  async>
+</script>` : null
   
   return (
     <div>
@@ -56,6 +96,14 @@ function Snippet({ apiKey }: SnippetProps) {
           Copy this code and paste it into your website's HTML, just before the closing &lt;/body&gt; tag.
         </p>
       </div>
+
+      {error && (
+        <div className="alert alert-warning" style={{ marginBottom: 24 }}>
+          <strong>Warning:</strong> Could not load snippet from API. {error}
+          <br />
+          <span style={{ fontSize: 12 }}>The backend may still be deploying. Showing placeholder code below.</span>
+        </div>
+      )}
       
       <div className="card">
         <div className="card-header">
@@ -63,6 +111,7 @@ function Snippet({ apiKey }: SnippetProps) {
           <button 
             className={`btn ${copied ? 'btn-primary' : 'btn-secondary'}`}
             onClick={handleCopy}
+            disabled={!snippet && !error}
           >
             {copied ? <Check size={18} /> : <Copy size={18} />}
             {copied ? 'Copied!' : 'Copy Code'}
@@ -70,7 +119,7 @@ function Snippet({ apiKey }: SnippetProps) {
         </div>
         
         <div className="code-block">
-          <pre>{snippet?.html || 'Loading...'}</pre>
+          <pre>{snippet?.html || displaySnippet || 'No code available'}</pre>
         </div>
       </div>
       
