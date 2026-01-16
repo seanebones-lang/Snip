@@ -166,7 +166,7 @@ function Usage({ apiKey }: UsageProps) {
               height: 200,
               padding: '0 16px'
             }}>
-              {usage.daily_usage.slice().reverse().map((day, i) => {
+              {usage.daily_usage.slice().reverse().map((day) => {
                 const maxMessages = getMaxValue(usage.daily_usage, 'message_count')
                 const height = (day.message_count / maxMessages) * 100
                 

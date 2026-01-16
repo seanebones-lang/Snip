@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Save, RotateCcw } from 'lucide-react'
+import { Save } from 'lucide-react'
 
 interface BrandingProps {
   apiKey: string
