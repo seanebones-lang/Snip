@@ -19,6 +19,7 @@ interface Config {
   auto_open: boolean
   show_branding: boolean
   allowed_domains: string[]
+  xai_api_key_set: boolean
 }
 
 function Branding({ apiKey }: BrandingProps) {
@@ -27,6 +28,8 @@ function Branding({ apiKey }: BrandingProps) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [xaiApiKey, setXaiApiKey] = useState('')
+  const [showXaiKey, setShowXaiKey] = useState(false)
   
   useEffect(() => {
     const fetchConfig = async () => {

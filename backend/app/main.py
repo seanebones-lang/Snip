@@ -158,7 +158,8 @@ async def update_config(
     
     db.commit()
     db.refresh(client.config)
-    return client.config
+    # Use from_orm to hide actual API key
+    return ConfigResponse.from_orm(client.config)
 
 
 @app.get("/api/widget/config/{client_id}", response_model=WidgetConfig)
@@ -272,10 +273,18 @@ RELEVANT CONTEXT FROM COMPANY DOCUMENTS:
 Use this context to answer questions when relevant.
 """
     
-    # Call xAI Grok API
-    api_key = settings.xai_api_key
+    # Get xAI API key - use client's key if set, otherwise fallback to global
+    api_key = None
+    if config.xai_api_key:
+        api_key = config.xai_api_key
+    elif settings.xai_api_key:
+        api_key = settings.xai_api_key
+    
     if not api_key:
-        raise HTTPException(status_code=500, detail="AI service not configured")
+        raise HTTPException(
+            status_code=500, 
+            detail="AI service not configured. Please add your xAI API key in the dashboard settings."
+        )
     
     try:
         headers = {

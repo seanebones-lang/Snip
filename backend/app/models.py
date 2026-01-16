@@ -87,6 +87,9 @@ class ClientConfig(Base):
     # AI Customization
     system_prompt = Column(Text, nullable=True)  # Additional instructions for the AI
     
+    # API Keys (encrypted/hashed for security)
+    xai_api_key = Column(Text, nullable=True)  # Customer's own xAI API key (encrypted)
+    
     # Widget behavior
     position = Column(String(20), default="bottom-right", nullable=False)  # bottom-right, bottom-left
     auto_open = Column(Boolean, default=False, nullable=False)
