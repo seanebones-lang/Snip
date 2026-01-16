@@ -263,6 +263,7 @@ Guidelines:
                 ).first()
                 if usage:
                     usage.rag_query_count = (usage.rag_query_count or 0) + 1
+                    db.commit()
         except Exception as e:
             print(f"RAG retrieval error: {e}")
             rag_context = ""
