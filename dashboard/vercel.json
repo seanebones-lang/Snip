@@ -5,11 +5,25 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://snip-production.up.railway.app/api/$1"
+      "destination": "https://snip-production.up.railway.app/api/$1",
+      "headers": {
+        "X-Forwarded-Host": "snip.mothership-ai.com"
+      }
     },
     {
       "source": "/(.*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        }
+      ]
     }
   ]
 }
