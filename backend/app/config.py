@@ -2,12 +2,19 @@
 Snip Configuration
 Environment variables and settings
 """
-from pydantic_settings import BaseSettings
+import os
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    # Database
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="allow",
+        case_sensitive=False,  # Match DATABASE_URL from Railway
+    )
+    
+    # Database - Railway provides DATABASE_URL (Pydantic maps it via case_sensitive=False)
     database_url: str = "postgresql://localhost:5432/snip"
     
     # API Keys
@@ -26,10 +33,6 @@ class Settings(BaseSettings):
     
     # Widget CDN URL (where widget.js is hosted)
     widget_cdn_url: str = "https://snip.yourdomain.com"
-    
-    class Config:
-        env_file = ".env"
-        extra = "allow"
 
 
 @lru_cache()

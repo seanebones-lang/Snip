@@ -49,7 +49,14 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     """Initialize database on startup"""
-    init_db()
+    try:
+        init_db()
+    except Exception as e:
+        # Log error but don't crash app - database might not be ready yet
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to initialize database: {e}")
+        # In production, you might want to fail fast, but this allows app to start
 
 
 # ============== Health Check ==============
