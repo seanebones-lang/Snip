@@ -2,7 +2,7 @@
 Snip - Multi-tenant Chatbot Snippet Service
 Main FastAPI Application
 """
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Header, Request
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Header, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -242,12 +242,15 @@ app = FastAPI(
 )
 
 # CORS - allow widget to load from any domain
+# Note: allow_credentials=False because we use API keys in headers, not cookies
+# Browsers don't allow allow_origins=["*"] with allow_credentials=True
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,  # Fixed: Cannot use "*" with credentials=True
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],  # Ensure all headers are exposed to clients
 )
 
 
@@ -688,14 +691,75 @@ async def get_embed_snippet(
 
 # ============== Documents (Premium) ==============
 
+async def process_document_background(
+    client_id: UUID,
+    doc_id: UUID,
+    content: bytes,
+    file_type: str,
+    filename: str
+):
+    """
+    Background task to process document (runs on Railway)
+    Updates document status when complete
+    """
+    from .database import SessionLocal
+    from .rag import process_document
+    
+    # Get a new database session for background task
+    db = SessionLocal()
+    try:
+        # Get document
+        doc = db.query(Document).filter(Document.id == doc_id).first()
+        if not doc:
+            print(f"[Background] Document {doc_id} not found")
+            return
+        
+        # Update status to PROCESSING
+        doc.status = DocumentStatus.PROCESSING
+        db.commit()
+        
+        # Process document
+        chunk_count = await process_document(
+            client_id=client_id,
+            doc_id=doc_id,
+            content=content,
+            file_type=file_type,
+            filename=filename
+        )
+        
+        # Update status to COMPLETED
+        doc.status = DocumentStatus.COMPLETED
+        doc.chunk_count = chunk_count
+        doc.processed_at = datetime.utcnow()
+        db.commit()
+        
+        print(f"[Background] Document {doc_id} processed successfully: {chunk_count} chunks")
+        
+    except Exception as e:
+        # Update status to FAILED
+        db.rollback()
+        doc = db.query(Document).filter(Document.id == doc_id).first()
+        if doc:
+            doc.status = DocumentStatus.FAILED
+            doc.error_message = str(e)
+            db.commit()
+        print(f"[Background] Document {doc_id} processing failed: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        db.close()
+
+
 @app.post("/api/documents", response_model=DocumentResponse)
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     client: Client = Depends(get_client_from_api_key),
     db: Session = Depends(get_db)
 ):
     """
     Upload a document for RAG (Premium only)
+    Processing happens asynchronously on Railway
     """
     # Check tier
     if client.tier != TierEnum.PREMIUM:
@@ -725,38 +789,29 @@ async def upload_document(
     if file_size > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
     
-    # Create document record
+    # Create document record with PENDING status
     doc = Document(
         client_id=client.id,
         filename=file.filename,
         file_type=allowed_types[file.content_type],
         file_size=file_size,
-        status=DocumentStatus.PROCESSING
+        status=DocumentStatus.PENDING  # Start as PENDING, will update to PROCESSING -> COMPLETED
     )
     db.add(doc)
     db.commit()
     db.refresh(doc)
     
-    # Process document (in production, this should be async/background job)
-    try:
-        from .rag import process_document
-        chunk_count = await process_document(
-            client_id=client.id,
-            doc_id=doc.id,
-            content=contents,
-            file_type=allowed_types[file.content_type],
-            filename=file.filename
-        )
-        doc.status = DocumentStatus.COMPLETED
-        doc.chunk_count = chunk_count
-        doc.processed_at = datetime.utcnow()
-    except Exception as e:
-        doc.status = DocumentStatus.FAILED
-        doc.error_message = str(e)
+    # Queue document for background processing on Railway
+    background_tasks.add_task(
+        process_document_background,
+        client_id=client.id,
+        doc_id=doc.id,
+        content=contents,
+        file_type=allowed_types[file.content_type],
+        filename=file.filename
+    )
     
-    db.commit()
-    db.refresh(doc)
-    
+    # Return immediately with PENDING status
     return doc
 
 

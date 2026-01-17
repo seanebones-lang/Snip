@@ -514,35 +514,11 @@ class SnipWidget {
   }
 
   private async textToSpeech(text: string, voiceId: string = 'female_british'): Promise<Blob | null> {
-    const ttsApiUrl = "https://ai-voiceover-production-6f76.up.railway.app/api/tts"
-    const ttsToken = "9935c962-221a-46ac-aa4a-66eccc8c0997"
-    
-    console.log('[TTS] Requesting audio for:', text.substring(0, 50))
-    
-    try {
-      const response = await fetch(ttsApiUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + ttsToken,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ text, voice_id: voiceId })
-      })
-
-      console.log('[TTS] Status:', response.status)
-
-      if (!response.ok) {
-        console.error('[TTS] Failed:', response.status, response.statusText)
-        throw new Error('TTS API error: ' + response.status)
-      }
-
-      const blob = await response.blob()
-      console.log('[TTS] Got blob, size:', blob.size)
-      return blob
-    } catch (err) {
-      console.error('[TTS] Error:', err)
-      return null
-    }
+    // OLD METHOD REMOVED - This caused CORS issues
+    // TTS should come from backend as audio_url (base64 data URL)
+    // If audio_url is missing, fallback to browser TTS instead
+    console.log('[TTS] External TTS API call removed - using backend audio_url or browser fallback')
+    return null
   }
 
   private createAudioUrl(blob: Blob): string {
@@ -554,37 +530,11 @@ class SnipWidget {
   }
 
   private async generateAndPlayAudio(text: string) {
-    try {
-      // Use textToSpeech utility function (following the guide pattern)
-      const audioBlob = await this.textToSpeech(text)
-      
-      if (audioBlob) {
-        // Create audio URL from blob
-        const audioUrl = this.createAudioUrl(audioBlob)
-        const audio = new Audio(audioUrl)
-        
-        audio.addEventListener('ended', () => {
-          this.revokeAudioUrl(audioUrl)
-          console.log('[TTS] Audio playback finished')
-        })
-        
-        audio.addEventListener('error', (e) => {
-          console.error('[TTS] Audio playback error:', e)
-          this.revokeAudioUrl(audioUrl)
-          // Fallback to browser TTS if audio playback fails
-          this.fallbackBrowserTTS(text)
-        })
-        
-        await audio.play()
-        console.log('[TTS] Playing audio from TTS API')
-      } else {
-        // Fallback to browser-native speech synthesis
-        this.fallbackBrowserTTS(text)
-      }
-    } catch (err) {
-      console.error('[TTS] All methods failed, trying browser fallback:', err)
-      this.fallbackBrowserTTS(text)
-    }
+    // TTS should come from backend as audio_url (base64 data URL)
+    // If backend doesn't provide audio_url, use browser TTS fallback
+    // No external API calls from browser (prevents CORS issues)
+    console.log('[TTS] Using browser TTS fallback (backend should provide audio_url)')
+    this.fallbackBrowserTTS(text)
   }
 
   private fallbackBrowserTTS(text: string) {
