@@ -31,5 +31,34 @@ def get_db():
 
 
 def init_db():
-    """Initialize database tables"""
+    """Initialize database tables and run migrations"""
+    # Create all tables first
     Base.metadata.create_all(bind=engine)
+    
+    # Run migration: Add AI provider columns if they don't exist
+    try:
+        with engine.connect() as conn:
+            # Check if columns exist
+            from sqlalchemy import text, inspect
+            inspector = inspect(engine)
+            columns = [col['name'] for col in inspector.get_columns('client_configs')]
+            
+            migration_needed = False
+            if 'ai_provider' not in columns:
+                migration_needed = True
+            
+            if migration_needed:
+                print("Running migration: Adding AI provider columns...")
+                migration_sql = text("""
+                    ALTER TABLE client_configs
+                    ADD COLUMN IF NOT EXISTS ai_provider VARCHAR(50),
+                    ADD COLUMN IF NOT EXISTS ai_api_key TEXT,
+                    ADD COLUMN IF NOT EXISTS ai_model VARCHAR(100);
+                """)
+                conn.execute(migration_sql)
+                conn.commit()
+                print("✅ Migration completed: AI provider columns added")
+    except Exception as e:
+        # Log error but don't crash - migration might already be done
+        print(f"Migration check: {e}")
+        pass
