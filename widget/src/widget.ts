@@ -25,6 +25,7 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  audio_url?: string // Backend-provided TTS audio URL (base64 data URL)
 }
 
 class SnipWidget {
@@ -88,8 +89,12 @@ class SnipWidget {
         for (let i = this.messages.length - 1; i > this.lastTTSIndex; i--) {
           if (this.messages[i].role === 'assistant') {
             this.lastTTSIndex = i
-            // Generate and play audio for this message
-            this.generateAndPlayAudio(this.messages[i].content)
+            // Use audio_url if available, otherwise generate TTS
+            if (this.messages[i].audio_url) {
+              this.playAudioFromUrl(this.messages[i].audio_url)
+            } else {
+              this.generateAndPlayAudio(this.messages[i].content)
+            }
             break
           }
         }
@@ -484,51 +489,156 @@ class SnipWidget {
     button.style.display = 'flex'
   }
 
-  private async generateAndPlayAudio(text: string) {
+  private playAudioFromUrl(audioUrl: string) {
     try {
-      const ttsApiUrl = "https://ai-voiceover-production-6f76.up.railway.app/api/tts"
-      const ttsToken = "9935c962-221a-46ac-aa4a-66eccc8c0997"
+      console.log('[TTS] Playing audio from backend URL (base64 data URL)')
+      const audio = new Audio(audioUrl)
       
-      console.log('[TTS] Generating audio for:', text.substring(0, 50))
-      
-      const ttsResponse = await fetch(ttsApiUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ttsToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          text: text,
-          voice_id: 'female_british'
-        }),
-        signal: AbortSignal.timeout(30000) // 30 second timeout
+      audio.addEventListener('ended', () => {
+        console.log('[TTS] Audio playback finished')
       })
       
-      if (ttsResponse.ok) {
-        const audioBlob = await ttsResponse.blob()
-        console.log('[TTS] Audio blob received, size:', audioBlob.size)
-        
-        const audioUrl = URL.createObjectURL(audioBlob)
+      audio.addEventListener('error', (e) => {
+        console.error('[TTS] Audio playback error:', e)
+      })
+      
+      audio.play().catch(err => {
+        console.error('[TTS] Failed to play audio:', err)
+        // If base64 URL fails, try to extract text and use fallback
+      })
+      
+      console.log('[TTS] Playing audio from backend')
+    } catch (err) {
+      console.error('[TTS] Error playing audio from URL:', err)
+    }
+  }
+
+  private async textToSpeech(text: string, voiceId: string = 'female_british'): Promise<Blob | null> {
+    const ttsApiUrl = "https://ai-voiceover-production-6f76.up.railway.app/api/tts"
+    const ttsToken = "9935c962-221a-46ac-aa4a-66eccc8c0997"
+    
+    console.log('[TTS] Requesting audio for:', text.substring(0, 50))
+    
+    try {
+      const response = await fetch(ttsApiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + ttsToken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text, voice_id: voiceId })
+      })
+
+      console.log('[TTS] Status:', response.status)
+
+      if (!response.ok) {
+        console.error('[TTS] Failed:', response.status, response.statusText)
+        throw new Error('TTS API error: ' + response.status)
+      }
+
+      const blob = await response.blob()
+      console.log('[TTS] Got blob, size:', blob.size)
+      return blob
+    } catch (err) {
+      console.error('[TTS] Error:', err)
+      return null
+    }
+  }
+
+  private createAudioUrl(blob: Blob): string {
+    return URL.createObjectURL(blob)
+  }
+
+  private revokeAudioUrl(url: string): void {
+    URL.revokeObjectURL(url)
+  }
+
+  private async generateAndPlayAudio(text: string) {
+    try {
+      // Use textToSpeech utility function (following the guide pattern)
+      const audioBlob = await this.textToSpeech(text)
+      
+      if (audioBlob) {
+        // Create audio URL from blob
+        const audioUrl = this.createAudioUrl(audioBlob)
         const audio = new Audio(audioUrl)
         
         audio.addEventListener('ended', () => {
-          URL.revokeObjectURL(audioUrl)
+          this.revokeAudioUrl(audioUrl)
           console.log('[TTS] Audio playback finished')
         })
         
         audio.addEventListener('error', (e) => {
           console.error('[TTS] Audio playback error:', e)
-          URL.revokeObjectURL(audioUrl)
+          this.revokeAudioUrl(audioUrl)
+          // Fallback to browser TTS if audio playback fails
+          this.fallbackBrowserTTS(text)
         })
         
         await audio.play()
-        console.log('[TTS] Audio playing')
+        console.log('[TTS] Playing audio from TTS API')
       } else {
-        console.error('[TTS] API error:', ttsResponse.status, await ttsResponse.text())
+        // Fallback to browser-native speech synthesis
+        this.fallbackBrowserTTS(text)
       }
     } catch (err) {
-      // TTS is critical but don't break chat if it fails
-      console.error('[TTS] Generation failed:', err)
+      console.error('[TTS] All methods failed, trying browser fallback:', err)
+      this.fallbackBrowserTTS(text)
+    }
+  }
+
+  private fallbackBrowserTTS(text: string) {
+    if (!('speechSynthesis' in window)) {
+      console.warn('[TTS] Browser speech synthesis not supported')
+      return
+    }
+    
+    try {
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel()
+      
+      const utterance = new SpeechSynthesisUtterance(text)
+      
+      // Try to find a British English voice, otherwise use default
+      const voices = window.speechSynthesis.getVoices()
+      const britishVoice = voices.find(v => 
+        v.lang.includes('en-GB') || 
+        v.name.toLowerCase().includes('british') ||
+        v.name.toLowerCase().includes('uk')
+      )
+      
+      if (britishVoice) {
+        utterance.voice = britishVoice
+        console.log('[TTS] Using British voice:', britishVoice.name)
+      } else {
+        // Use first English voice available
+        const englishVoice = voices.find(v => v.lang.startsWith('en'))
+        if (englishVoice) {
+          utterance.voice = englishVoice
+          console.log('[TTS] Using English voice:', englishVoice.name)
+        }
+      }
+      
+      utterance.rate = 0.95 // Slightly slower for clarity
+      utterance.pitch = 1.0
+      utterance.volume = 1.0
+      
+      utterance.onstart = () => console.log('[TTS] Browser speech started')
+      utterance.onend = () => console.log('[TTS] Browser speech finished')
+      utterance.onerror = (e) => console.error('[TTS] Browser speech error:', e)
+      
+      // Voices may not be loaded immediately
+      if (voices.length === 0) {
+        window.speechSynthesis.onvoiceschanged = () => {
+          this.fallbackBrowserTTS(text)
+        }
+        return
+      }
+      
+      window.speechSynthesis.speak(utterance)
+      console.log('[TTS] Browser TTS playing')
+    } catch (err) {
+      console.error('[TTS] Browser TTS failed:', err)
     }
   }
 
@@ -595,11 +705,17 @@ class SnipWidget {
       this.messages.push({
         role: 'assistant',
         content: data.response,
-        timestamp: new Date()
+        timestamp: new Date(),
+        audio_url: data.audio_url
       })
       
-      // Generate and play TTS audio (client-side) - CRITICAL FEATURE
-      this.generateAndPlayAudio(data.response)
+      // Use audio_url from backend if provided (already generated), otherwise generate TTS
+      if (data.audio_url) {
+        this.playAudioFromUrl(data.audio_url)
+      } else {
+        // Fallback: generate TTS client-side if backend didn't provide audio
+        this.generateAndPlayAudio(data.response)
+      }
     } catch (error) {
       this.messages.push({
         role: 'assistant',

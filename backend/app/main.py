@@ -9,7 +9,13 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date, datetime
 import os
+import time
 import requests
+import httpx
+import websockets
+import json
+import base64
+import asyncio
 from uuid import UUID
 
 from .config import get_settings
@@ -29,6 +35,205 @@ from .auth import (
 )
 
 settings = get_settings()
+
+# X.AI TTS Configuration
+XAI_REALTIME_WS = "wss://api.x.ai/v1/realtime"
+XAI_EPHEMERAL_TOKEN_ENDPOINT = "https://api.x.ai/v1/realtime/client_secrets"
+
+
+async def get_xai_ephemeral_token(api_key: str) -> str:
+    """
+    Get ephemeral token for X.AI Grok Voice Agent API
+    Uses the X.AI API key to get a short-lived token for WebSocket connection
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                XAI_EPHEMERAL_TOKEN_ENDPOINT,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={}  # Empty JSON body
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data["value"]  # X.AI returns "value" not "token"
+    except Exception as e:
+        print(f"Failed to get X.AI ephemeral token: {e}")
+        raise
+
+
+async def generate_xai_tts_audio(text: str, api_key: str, voice: str = "Ara") -> Optional[bytes]:
+    """
+    Generate TTS audio using X.AI Grok Voice Agent API via WebSocket
+    
+    Args:
+        text: Text to convert to speech
+        api_key: X.AI API key
+        voice: Voice name (Ara, Leo, Rex, Sal, Eve)
+    
+    Returns:
+        Audio bytes (PCM format at 24kHz) or None if failed
+    """
+    try:
+        # Step 1: Get ephemeral token
+        token = await get_xai_ephemeral_token(api_key)
+        
+        # Step 2: Connect via WebSocket
+        async with websockets.connect(
+            XAI_REALTIME_WS,
+            additional_headers={"Authorization": f"Bearer {token}"},
+            ping_interval=20,
+            ping_timeout=10
+        ) as ws:
+            
+            # Step 3: Send session configuration
+            session_update = {
+                "type": "session.update",
+                "session": {
+                    "voice": voice,
+                    "instructions": "You are a helpful voice assistant. Speak clearly and naturally.",
+                    "audio": {
+                        "input": {"format": {"type": "audio/pcm", "rate": 24000}},
+                        "output": {"format": {"type": "audio/pcm", "rate": 24000}}
+                    }
+                }
+            }
+            await ws.send(json.dumps(session_update))
+            
+            # Wait for session.updated
+            session_ready = False
+            for _ in range(5):
+                try:
+                    msg = await asyncio.wait_for(ws.recv(), timeout=2.0)
+                    obj = json.loads(msg)
+                    if obj.get("type") == "session.updated":
+                        session_ready = True
+                        print(f"[X.AI TTS] Session configured with voice: {voice}")
+                        break
+                except asyncio.TimeoutError:
+                    continue
+            
+            if not session_ready:
+                print(f"[X.AI TTS] Warning: Session update not confirmed")
+            
+            # Step 4: Create conversation item with text
+            item_message = {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{"type": "input_text", "text": text}]
+                }
+            }
+            await ws.send(json.dumps(item_message))
+            print(f"[X.AI TTS] Sent text input: {text[:50]}...")
+            
+            # Wait for conversation.item.added
+            item_added = False
+            for _ in range(5):
+                try:
+                    msg = await asyncio.wait_for(ws.recv(), timeout=2.0)
+                    obj = json.loads(msg)
+                    if obj.get("type") == "conversation.item.added":
+                        item_added = True
+                        break
+                except asyncio.TimeoutError:
+                    continue
+            
+            if not item_added:
+                print(f"[X.AI TTS] Warning: Conversation item not confirmed")
+            
+            # Step 5: Create response to generate audio
+            response_message = {
+                "type": "response.create",
+                "response": {
+                    "modalities": ["text", "audio"]
+                }
+            }
+            await ws.send(json.dumps(response_message))
+            
+            # Step 6: Collect audio deltas
+            audio_chunks = []
+            timeout = 30
+            start_time = time.time()
+            
+            async for msg in ws:
+                if time.time() - start_time > timeout:
+                    print(f"[X.AI TTS] Timeout waiting for audio")
+                    break
+                
+                try:
+                    obj = json.loads(msg)
+                    msg_type = obj.get("type")
+                    
+                    if msg_type == "response.output_audio.delta":
+                        # Audio comes in delta field as base64
+                        delta = obj.get("delta")
+                        if delta:
+                            audio_bytes = base64.b64decode(delta)
+                            audio_chunks.append(audio_bytes)
+                            print(f"[X.AI TTS] Received audio delta: {len(audio_bytes)} bytes")
+                    
+                    elif msg_type in ["response.output_audio.done", "response.done"]:
+                        print(f"[X.AI TTS] Audio generation complete")
+                        break
+                    
+                    elif msg_type == "error":
+                        error_msg = obj.get("error", {}).get("message", "Unknown error")
+                        print(f"[X.AI TTS] Error: {error_msg}")
+                        break
+                        
+                except json.JSONDecodeError:
+                    continue
+                except Exception as e:
+                    print(f"[X.AI TTS] Error processing message: {e}")
+                    continue
+            
+            if audio_chunks:
+                combined_audio = b"".join(audio_chunks)
+                print(f"[X.AI TTS] Generated {len(combined_audio)} bytes of audio")
+                return combined_audio
+            else:
+                print(f"[X.AI TTS] No audio chunks received")
+                return None
+                
+    except Exception as e:
+        print(f"[X.AI TTS] Failed to generate audio: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def convert_pcm_to_wav(pcm_audio: bytes, sample_rate: int = 24000, channels: int = 1, sample_width: int = 2) -> bytes:
+    """
+    Convert PCM audio to WAV format for browser playback
+    """
+    import struct
+    
+    # WAV header constants
+    fmt_size = 16
+    data_size = len(pcm_audio)
+    file_size = 36 + data_size
+    
+    # Create WAV header
+    header = b'RIFF'
+    header += struct.pack('<I', file_size)
+    header += b'WAVE'
+    header += b'fmt '
+    header += struct.pack('<I', fmt_size)
+    header += struct.pack('<H', 1)  # PCM format
+    header += struct.pack('<H', channels)
+    header += struct.pack('<I', sample_rate)
+    header += struct.pack('<I', sample_rate * channels * sample_width)  # byte rate
+    header += struct.pack('<H', channels * sample_width)  # block align
+    header += struct.pack('<H', sample_width * 8)  # bits per sample
+    header += b'data'
+    header += struct.pack('<I', data_size)
+    
+    return header + pcm_audio
+
 
 app = FastAPI(
     title="Snip API",
@@ -310,12 +515,14 @@ Use this context to answer questions when relevant.
     # Determine API endpoint and model defaults based on provider
     api_url = None
     default_models = {
-        'xai': 'grok-3-fast',
+        'xai': 'grok-4-1-fast-non-reasoning',  # Updated to latest fast model
         'openai': 'gpt-4',
         'anthropic': 'claude-3-opus-20240229'
     }
     
     if provider == 'xai':
+        # Note: Chat Completions endpoint is deprecated, Responses API is preferred
+        # TODO: Migrate to /v1/responses endpoint for future-proofing
         api_url = "https://api.x.ai/v1/chat/completions"
         model = model or default_models['xai']
     elif provider == 'openai':
@@ -410,37 +617,37 @@ Use this context to answer questions when relevant.
         
         db.commit()
         
-        # Generate TTS audio URL if TTS is enabled
+        # Generate TTS audio URL using X.AI Grok Voice Agent API
         audio_url = None
         try:
-            # Call TTS API to generate audio
-            tts_api_url = "https://ai-voiceover-production-6f76.up.railway.app/api/tts"
-            tts_token = "9935c962-221a-46ac-aa4a-66eccc8c0997"
-            
-            tts_response = requests.post(
-                tts_api_url,
-                headers={
-                    "Authorization": f"Bearer {tts_token}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "text": response_text,
-                    "voice_id": "female_british"
-                },
-                timeout=10
-            )
-            
-            if tts_response.status_code == 200:
-                # TTS API returns audio blob, but we need to store it or return URL
-                # For now, return a data URL or proxy through our API
-                # Option: Store in CDN/S3, or return base64 data URL
-                import base64
-                audio_blob = tts_response.content
-                audio_base64 = base64.b64encode(audio_blob).decode('utf-8')
-                audio_url = f"data:audio/mpeg;base64,{audio_base64}"
+            # Only generate TTS if provider is xai (X.AI supports voice generation)
+            if provider == 'xai' and api_key:
+                print(f"[TTS] Generating audio for: {response_text[:50]}...")
+                
+                # Generate audio using X.AI Grok Voice Agent API
+                pcm_audio = await generate_xai_tts_audio(
+                    text=response_text,
+                    api_key=api_key,
+                    voice="Ara"  # Can be: Ara, Leo, Rex, Sal, Eve
+                )
+                
+                if pcm_audio:
+                    # Convert PCM to WAV for browser compatibility
+                    wav_audio = convert_pcm_to_wav(pcm_audio)
+                    
+                    # Convert to base64 data URL
+                    audio_base64 = base64.b64encode(wav_audio).decode('utf-8')
+                    audio_url = f"data:audio/wav;base64,{audio_base64}"
+                    print(f"[TTS] Successfully generated audio ({len(wav_audio)} bytes)")
+                else:
+                    print(f"[TTS] Failed to generate audio from X.AI")
+            else:
+                print(f"[TTS] Skipping TTS generation (provider: {provider})")
         except Exception as e:
             # TTS is optional - don't fail if it doesn't work
-            print(f"TTS generation failed (non-fatal): {e}")
+            print(f"[TTS] TTS generation failed (non-fatal): {e}")
+            import traceback
+            traceback.print_exc()
             audio_url = None
         
         return ChatResponse(
