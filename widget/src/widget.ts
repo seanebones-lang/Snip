@@ -525,14 +525,37 @@ class SnipWidget {
         timestamp: new Date()
       })
       
-      // Play audio if available
-      if (data.audio_url) {
-        try {
-          const audio = new Audio(data.audio_url)
+      // Generate and play TTS audio (client-side)
+      try {
+        const ttsApiUrl = "https://ai-voiceover-production-6f76.up.railway.app/api/tts"
+        const ttsToken = "9935c962-221a-46ac-aa4a-66eccc8c0997"
+        
+        const ttsResponse = await fetch(ttsApiUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${ttsToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            text: data.response,
+            voice_id: 'female_british'
+          })
+        })
+        
+        if (ttsResponse.ok) {
+          const audioBlob = await ttsResponse.blob()
+          const audioUrl = URL.createObjectURL(audioBlob)
+          const audio = new Audio(audioUrl)
           audio.play().catch(err => console.log('Audio playback failed:', err))
-        } catch (err) {
-          console.log('Audio creation failed:', err)
+          
+          // Clean up URL after audio finishes
+          audio.addEventListener('ended', () => {
+            URL.revokeObjectURL(audioUrl)
+          })
         }
+      } catch (err) {
+        // TTS is optional - don't fail chat if it doesn't work
+        console.log('TTS generation failed (non-fatal):', err)
       }
     } catch (error) {
       this.messages.push({
