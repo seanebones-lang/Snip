@@ -51,3 +51,4 @@ def init_db():
         # Log error but don't crash - migration might already be done or table might not exist yet
         print(f"Migration check (non-fatal): {e}")
         pass
+# Auto-migration enabled
