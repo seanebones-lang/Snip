@@ -459,6 +459,54 @@ class SnipWidget {
     button.style.display = 'flex'
   }
 
+  private async generateAndPlayAudio(text: string) {
+    try {
+      const ttsApiUrl = "https://ai-voiceover-production-6f76.up.railway.app/api/tts"
+      const ttsToken = "9935c962-221a-46ac-aa4a-66eccc8c0997"
+      
+      console.log('[TTS] Generating audio for:', text.substring(0, 50))
+      
+      const ttsResponse = await fetch(ttsApiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${ttsToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          text: text,
+          voice_id: 'female_british'
+        }),
+        signal: AbortSignal.timeout(30000) // 30 second timeout
+      })
+      
+      if (ttsResponse.ok) {
+        const audioBlob = await ttsResponse.blob()
+        console.log('[TTS] Audio blob received, size:', audioBlob.size)
+        
+        const audioUrl = URL.createObjectURL(audioBlob)
+        const audio = new Audio(audioUrl)
+        
+        audio.addEventListener('ended', () => {
+          URL.revokeObjectURL(audioUrl)
+          console.log('[TTS] Audio playback finished')
+        })
+        
+        audio.addEventListener('error', (e) => {
+          console.error('[TTS] Audio playback error:', e)
+          URL.revokeObjectURL(audioUrl)
+        })
+        
+        await audio.play()
+        console.log('[TTS] Audio playing')
+      } else {
+        console.error('[TTS] API error:', ttsResponse.status, await ttsResponse.text())
+      }
+    } catch (err) {
+      // TTS is critical but don't break chat if it fails
+      console.error('[TTS] Generation failed:', err)
+    }
+  }
+
   private renderMessages() {
     if (!this.container) return
     
@@ -525,38 +573,8 @@ class SnipWidget {
         timestamp: new Date()
       })
       
-      // Generate and play TTS audio (client-side)
-      try {
-        const ttsApiUrl = "https://ai-voiceover-production-6f76.up.railway.app/api/tts"
-        const ttsToken = "9935c962-221a-46ac-aa4a-66eccc8c0997"
-        
-        const ttsResponse = await fetch(ttsApiUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${ttsToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            text: data.response,
-            voice_id: 'female_british'
-          })
-        })
-        
-        if (ttsResponse.ok) {
-          const audioBlob = await ttsResponse.blob()
-          const audioUrl = URL.createObjectURL(audioBlob)
-          const audio = new Audio(audioUrl)
-          audio.play().catch(err => console.log('Audio playback failed:', err))
-          
-          // Clean up URL after audio finishes
-          audio.addEventListener('ended', () => {
-            URL.revokeObjectURL(audioUrl)
-          })
-        }
-      } catch (err) {
-        // TTS is optional - don't fail chat if it doesn't work
-        console.log('TTS generation failed (non-fatal):', err)
-      }
+      // Generate and play TTS audio (client-side) - CRITICAL FEATURE
+      this.generateAndPlayAudio(data.response)
     } catch (error) {
       this.messages.push({
         role: 'assistant',
