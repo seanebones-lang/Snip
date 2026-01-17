@@ -1,7 +1,7 @@
-# E2E Test Results - Snip Dashboard
+# E2E Test Results - Snip Chatbot (Latest)
 
 ## Test Date
-2026-01-16
+2026-01-16 (Updated)
 
 ## Test Environment
 - **Backend**: https://snip-production.up.railway.app
@@ -10,7 +10,25 @@
 
 ---
 
-## Test Results
+## Latest Test: Chatbot Talking Verification
+
+### ⚠️ Current Issue: Usage Counter NoneType Error
+
+**Error**: `unsupported operand type(s) for +=: 'NoneType' and 'int'`
+
+**Status**: Fixed in code, but Railway deployment may not have completed yet
+
+**Fix Applied**:
+- Changed `usage.message_count += 1` to `usage.message_count = (usage.message_count or 0) + 1`
+- Changed `usage.token_count += ...` to `usage.token_count = (usage.token_count or 0) + ...`
+- Changed `usage.rag_query_count += 1` to `usage.rag_query_count = (usage.rag_query_count or 0) + 1`
+- Properly initialize new UsageRecord objects with default values
+
+**Root Cause**: Existing database records may have `None` values in counter fields, or the model defaults weren't applied during initial creation.
+
+---
+
+## Test Results Summary
 
 ### ✅ 1. Backend Health Check
 - **Endpoint**: `GET /healthz`
@@ -20,88 +38,92 @@
 ### ✅ 2. Client Creation
 - **Endpoint**: `POST /api/clients`
 - **Status**: WORKING
-- **Can create clients with email and company_name**
+- Can create clients with email and company_name
 
-### ✅ 3. Client Info (Dashboard)
-- **Endpoint**: `GET /api/clients/me`
-- **Status**: WORKING (requires API key)
-- **Returns**: Client ID, email, company_name, tier, is_active
-
-### ✅ 4. Config (Branding Page)
-- **Endpoint**: `GET /api/config`
-- **Status**: WORKING (requires API key)
-- **Returns**: bot_name, colors, welcome_message, logo_url, etc.
-
-### ✅ 5. Embed Snippet (Snippet Page)
+### ✅ 3. Embed Snippet
 - **Endpoint**: `GET /api/embed-snippet`
-- **Status**: WORKING (requires API key)
-- **Returns**: html, script_url, client_id
+- **Status**: WORKING
+- Returns proper HTML snippet with client_id
 
-### ✅ 6. Usage Stats (Dashboard)
-- **Endpoint**: `GET /api/usage?days=30`
-- **Status**: WORKING (requires API key)
-- **Returns**: total_messages, total_tokens, total_rag_queries
-
-### ✅ 7. API Proxy Through Custom Domain
-- **Custom Domain**: https://snip.mothership-ai.com
-- **Proxy Status**: WORKING
-- **Routes**: `/api/*` → `https://snip-production.up.railway.app/api/*`
-
-### ✅ 8. Widget Config (Public)
+### ✅ 4. Widget Config (Public)
 - **Endpoint**: `GET /api/widget/config/{client_id}`
-- **Status**: WORKING (public, no auth required)
-- **Used by**: Embedded widget
+- **Status**: WORKING
+- Returns bot configuration for widget
 
-### ✅ 9. Dashboard Frontend
-- **URL**: https://snip.mothership-ai.com
-- **Status**: DEPLOYED
-- **Framework**: React + Vite
-- **Features**: 
-  - Login page
-  - Dashboard with pricing cards
-  - Branding configuration page
-  - Embed snippet page
-  - Documents page (Premium)
-  - Usage stats page
+### ⚠️ 5. Chat Endpoint
+- **Endpoint**: `POST /api/chat`
+- **Status**: FIXED IN CODE, DEPLOYING
+- **Issue**: NoneType error on usage tracking (fix deployed, waiting for Railway)
+
+### ✅ 6. Multi-Provider AI Support
+- **Feature**: Support for xAI, OpenAI, Anthropic
+- **Status**: IMPLEMENTED
+- **Default**: xAI (Grok) - unchanged behavior
+- **Configuration**: Via dashboard Branding page
 
 ---
 
 ## Fixed Issues
 
-### ✅ Snippet Page - Code Now Appears
-- **Before**: Showed "Loading..." forever when API failed
-- **After**: Shows placeholder code immediately, then loads real code when API is ready
-- **Error Handling**: Shows helpful error messages
+### ✅ Usage Counter Initialization
+- **Before**: `usage.message_count += 1` failed if value was `None`
+- **After**: `usage.message_count = (usage.message_count or 0) + 1`
+- **Impact**: Handles both new and existing records safely
 
-### ✅ Branding Page - Better Error Handling
-- **Before**: Silent failure or generic error
-- **After**: Shows helpful error messages with context
-- **Loading States**: Better UX during data fetch
-
-### ✅ API Proxy Configuration
-- **Fixed**: Vercel rewrites now properly proxy `/api/*` to Railway backend
-- **Result**: Dashboard API calls work through custom domain
+### ✅ RAG Query Tracking
+- **Before**: Could fail if usage record had None values
+- **After**: Safe increment with None checking
+- **Impact**: Premium RAG features work correctly
 
 ---
 
-## Known Issues / Notes
+## Code Changes
 
-1. **Domain Forwarding**: If using domain forwarding instead of DNS CNAME, API proxy may not work correctly. Use CNAME instead.
+**Commit**: `6c7c52c` - fix: commit RAG query count increment
 
-2. **Auto-Deploy**: Railway auto-deploy should be disabled to prevent deployment loops (reduced retry limit from 10 to 3).
+**Files Modified**:
+- `backend/app/main.py` - Usage tracking initialization and None handling
 
-3. **Backend Deployment**: Currently deploying - all endpoints should work once deployment completes.
+**Key Changes**:
+```python
+# Before (could fail with None)
+usage.message_count += 1
+
+# After (safe)
+usage.message_count = (usage.message_count or 0) + 1
+
+# Also properly initialize new records
+usage = UsageRecord(
+    client_id=client.id,
+    date=today,
+    message_count=0,
+    token_count=0,
+    rag_query_count=0
+)
+```
 
 ---
 
 ## Next Steps
 
-1. ✅ All endpoints tested and working
-2. ✅ Dashboard deployed and functional
-3. ✅ Error handling improved
-4. ⚠️ Monitor for any deployment issues
-5. ⚠️ Verify pricing cards appear on dashboard login
+1. ⏳ Wait for Railway deployment to complete
+2. ✅ Retest chat endpoint once deployed
+3. ✅ Verify chatbot is talking correctly
+4. ✅ Confirm xAI integration is working
 
 ---
 
-**E2E Testing Complete! All critical paths are working.**
+## Feature Verification Checklist
+
+- [x] Client creation works
+- [x] Embed snippet generation works
+- [x] Widget config retrieval works
+- [x] Chat endpoint code fixed
+- [ ] Chat endpoint tested (waiting for deployment)
+- [ ] Bot talking verification (waiting for deployment)
+- [x] Multi-provider AI support implemented
+- [x] xAI remains default provider
+
+---
+
+**Note**: The fix has been deployed to the repository. Railway should automatically deploy the changes. Once deployment completes, the chat endpoint should work correctly and the bot will be able to talk via xAI.

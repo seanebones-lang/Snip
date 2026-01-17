@@ -524,6 +524,16 @@ class SnipWidget {
         content: data.response,
         timestamp: new Date()
       })
+      
+      // Play audio if available
+      if (data.audio_url) {
+        try {
+          const audio = new Audio(data.audio_url)
+          audio.play().catch(err => console.log('Audio playback failed:', err))
+        } catch (err) {
+          console.log('Audio creation failed:', err)
+        }
+      }
     } catch (error) {
       this.messages.push({
         role: 'assistant',

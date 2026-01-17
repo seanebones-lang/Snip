@@ -410,10 +410,44 @@ Use this context to answer questions when relevant.
         
         db.commit()
         
+        # Generate TTS audio URL if TTS is enabled
+        audio_url = None
+        try:
+            # Call TTS API to generate audio
+            tts_api_url = "https://ai-voiceover-production-6f76.up.railway.app/api/tts"
+            tts_token = "9935c962-221a-46ac-aa4a-66eccc8c0997"
+            
+            tts_response = requests.post(
+                tts_api_url,
+                headers={
+                    "Authorization": f"Bearer {tts_token}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "text": response_text,
+                    "voice_id": "female_british"
+                },
+                timeout=10
+            )
+            
+            if tts_response.status_code == 200:
+                # TTS API returns audio blob, but we need to store it or return URL
+                # For now, return a data URL or proxy through our API
+                # Option: Store in CDN/S3, or return base64 data URL
+                import base64
+                audio_blob = tts_response.content
+                audio_base64 = base64.b64encode(audio_blob).decode('utf-8')
+                audio_url = f"data:audio/mpeg;base64,{audio_base64}"
+        except Exception as e:
+            # TTS is optional - don't fail if it doesn't work
+            print(f"TTS generation failed (non-fatal): {e}")
+            audio_url = None
+        
         return ChatResponse(
             response=response_text,
             mood="neutral",
-            sentiment_data={}
+            sentiment_data={},
+            audio_url=audio_url
         )
         
     except requests.exceptions.Timeout:

@@ -126,6 +126,7 @@ class ChatResponse(BaseModel):
     response: str
     mood: str = "neutral"
     sentiment_data: dict = {}
+    audio_url: Optional[str] = None  # TTS audio URL
 
 
 # ============== Document Schemas ==============
