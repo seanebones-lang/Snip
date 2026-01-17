@@ -70,9 +70,34 @@ class SnipWidget {
       if (this.config!.autoOpen) {
         this.open()
       }
+      
+      // Set up message watcher for TTS (like original implementation)
+      this.setupTTSWatcher()
     } catch (error) {
       console.error('Snip Widget: Initialization failed', error)
     }
+  }
+  
+  private lastTTSIndex = -1
+  
+  private setupTTSWatcher() {
+    // Watch for new assistant messages and play TTS automatically
+    const checkMessages = () => {
+      if (this.messages.length > this.lastTTSIndex + 1) {
+        // Find last assistant message we haven't played yet
+        for (let i = this.messages.length - 1; i > this.lastTTSIndex; i--) {
+          if (this.messages[i].role === 'assistant') {
+            this.lastTTSIndex = i
+            // Generate and play audio for this message
+            this.generateAndPlayAudio(this.messages[i].content)
+            break
+          }
+        }
+      }
+    }
+    
+    // Check for new messages periodically
+    setInterval(checkMessages, 500)
   }
 
   private injectStyles() {
