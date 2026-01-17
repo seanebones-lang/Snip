@@ -1,7 +1,7 @@
 """
 Database connection and session management
 """
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from .config import get_settings
@@ -37,28 +37,17 @@ def init_db():
     
     # Run migration: Add AI provider columns if they don't exist
     try:
-        with engine.connect() as conn:
-            # Check if columns exist
-            from sqlalchemy import text, inspect
-            inspector = inspect(engine)
-            columns = [col['name'] for col in inspector.get_columns('client_configs')]
-            
-            migration_needed = False
-            if 'ai_provider' not in columns:
-                migration_needed = True
-            
-            if migration_needed:
-                print("Running migration: Adding AI provider columns...")
-                migration_sql = text("""
-                    ALTER TABLE client_configs
-                    ADD COLUMN IF NOT EXISTS ai_provider VARCHAR(50),
-                    ADD COLUMN IF NOT EXISTS ai_api_key TEXT,
-                    ADD COLUMN IF NOT EXISTS ai_model VARCHAR(100);
-                """)
-                conn.execute(migration_sql)
-                conn.commit()
-                print("✅ Migration completed: AI provider columns added")
+        with engine.begin() as conn:
+            # Use IF NOT EXISTS to safely add columns (PostgreSQL 9.5+)
+            migration_sql = text("""
+                ALTER TABLE client_configs
+                ADD COLUMN IF NOT EXISTS ai_provider VARCHAR(50),
+                ADD COLUMN IF NOT EXISTS ai_api_key TEXT,
+                ADD COLUMN IF NOT EXISTS ai_model VARCHAR(100);
+            """)
+            conn.execute(migration_sql)
+            print("✅ Migration check: AI provider columns verified/added")
     except Exception as e:
-        # Log error but don't crash - migration might already be done
-        print(f"Migration check: {e}")
+        # Log error but don't crash - migration might already be done or table might not exist yet
+        print(f"Migration check (non-fatal): {e}")
         pass
