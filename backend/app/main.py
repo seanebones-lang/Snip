@@ -317,47 +317,75 @@ async def create_client(
     Create a new client account
     Returns the API key (only shown once!)
     """
-    # Check if email already exists
-    existing = db.query(Client).filter(Client.email == client_data.email).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # Generate API key
-    api_key = generate_api_key()
-    api_key_hash = hash_api_key(api_key)
-    
-    # Create client
-    client = Client(
-        email=client_data.email,
-        company_name=client_data.company_name,
-        tier=client_data.tier,
-        api_key=api_key[:16] + "...",  # Store truncated version for display
-        api_key_hash=api_key_hash
-    )
-    db.add(client)
-    db.flush()
-    
-    # Create default config
-    config = ClientConfig(
-        client_id=client.id,
-        bot_name=f"{client_data.company_name} Assistant",
-        welcome_message=f"Hello! Welcome to {client_data.company_name}. How can I help you today?"
-    )
-    db.add(config)
-    
-    db.commit()
-    db.refresh(client)
-    
-    # Return with full API key (only time it's shown)
-    return ClientWithApiKey(
-        id=client.id,
-        email=client.email,
-        company_name=client.company_name,
-        tier=client.tier,
-        is_active=client.is_active,
-        created_at=client.created_at,
-        api_key=api_key  # Full key returned only on creation
-    )
+    try:
+        # Ensure database is initialized (run migration if needed)
+        try:
+            init_db()
+        except Exception as migration_error:
+            # Log but don't fail - migration might already be done
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Migration check warning: {migration_error}")
+        
+        # Check if email already exists
+        existing = db.query(Client).filter(Client.email == client_data.email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # Generate API key
+        api_key = generate_api_key()
+        api_key_hash = hash_api_key(api_key)
+        
+        # Create client
+        client = Client(
+            email=client_data.email,
+            company_name=client_data.company_name,
+            tier=client_data.tier,
+            api_key=api_key[:16] + "...",  # Store truncated version for display
+            api_key_hash=api_key_hash
+        )
+        db.add(client)
+        db.flush()
+        
+        # Create default config with minimal required fields
+        # New customization fields are nullable and will default to NULL
+        config = ClientConfig(
+            client_id=client.id,
+            bot_name=f"{client_data.company_name} Assistant",
+            welcome_message=f"Hello! Welcome to {client_data.company_name}. How can I help you today?"
+            # widget_width, widget_height, custom_css, theme are nullable and default to NULL
+        )
+        db.add(config)
+        
+        db.commit()
+        db.refresh(client)
+        
+        # Return with full API key (only time it's shown)
+        return ClientWithApiKey(
+            id=client.id,
+            email=client.email,
+            company_name=client.company_name,
+            tier=client.tier,
+            is_active=client.is_active,
+            created_at=client.created_at,
+            api_key=api_key  # Full key returned only on creation
+        )
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 400 for duplicate email)
+        raise
+    except Exception as e:
+        # Log the full error for debugging
+        import logging
+        import traceback
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error creating client: {e}")
+        logger.error(traceback.format_exc())
+        
+        # Return 500 with helpful error message
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create client: {str(e)}. Please check database migration status."
+        )
 
 
 @app.get("/api/clients/me", response_model=ClientResponse)
