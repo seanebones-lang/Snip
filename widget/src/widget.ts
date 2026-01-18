@@ -36,6 +36,7 @@ class SnipWidget {
   private isOpen: boolean = false
   private messages: Message[] = []
   private isLoading: boolean = false
+  private currentAudio: HTMLAudioElement | null = null // Track current audio for cleanup
 
   constructor(clientId: string, apiUrl: string) {
     this.clientId = clientId
@@ -80,10 +81,14 @@ class SnipWidget {
   }
   
   private lastTTSIndex = -1
+  private isPlayingAudio: boolean = false // Prevent race conditions
   
   private setupTTSWatcher() {
     // Watch for new assistant messages and play TTS automatically
     const checkMessages = () => {
+      // Don't start new audio if already playing
+      if (this.isPlayingAudio) return
+      
       if (this.messages.length > this.lastTTSIndex + 1) {
         // Find last assistant message we haven't played yet
         for (let i = this.messages.length - 1; i > this.lastTTSIndex; i--) {
@@ -91,7 +96,7 @@ class SnipWidget {
             this.lastTTSIndex = i
             // Use audio_url if available, otherwise generate TTS
             if (this.messages[i].audio_url) {
-              this.playAudioFromUrl(this.messages[i].audio_url)
+              this.playAudioFromUrl(this.messages[i].audio_url, this.messages[i].content)
             } else {
               this.generateAndPlayAudio(this.messages[i].content)
             }
@@ -489,27 +494,127 @@ class SnipWidget {
     button.style.display = 'flex'
   }
 
-  private playAudioFromUrl(audioUrl: string) {
+  private playAudioFromUrl(audioUrl: string, fallbackText?: string) {
     try {
+      // Stop any currently playing audio to prevent overlap
+      this.stopAudio()
+      
       console.log('[TTS] Playing audio from backend URL (base64 data URL)')
       const audio = new Audio(audioUrl)
+      this.currentAudio = audio
+      this.isPlayingAudio = true
+      
+      // Accessibility: Announce audio playback start
+      this.announceAudioState('playing')
       
       audio.addEventListener('ended', () => {
         console.log('[TTS] Audio playback finished')
+        this.isPlayingAudio = false
+        this.currentAudio = null
+        this.announceAudioState('finished')
       })
       
       audio.addEventListener('error', (e) => {
         console.error('[TTS] Audio playback error:', e)
+        this.isPlayingAudio = false
+        this.currentAudio = null
+        this.announceAudioState('error')
+        
+        // Error recovery: Fallback to text-to-speech if text available
+        if (fallbackText) {
+          console.log('[TTS] Falling back to browser TTS due to audio playback error')
+          setTimeout(() => {
+            this.fallbackBrowserTTS(fallbackText)
+          }, 100)
+        }
+      })
+      
+      audio.addEventListener('loadstart', () => {
+        console.log('[TTS] Audio loading started')
+      })
+      
+      audio.addEventListener('canplay', () => {
+        console.log('[TTS] Audio ready to play')
       })
       
       audio.play().catch(err => {
         console.error('[TTS] Failed to play audio:', err)
-        // If base64 URL fails, try to extract text and use fallback
+        this.isPlayingAudio = false
+        this.currentAudio = null
+        
+        // Error recovery: Fallback to text-to-speech if text available
+        if (fallbackText) {
+          console.log('[TTS] Falling back to browser TTS due to play() error')
+          this.fallbackBrowserTTS(fallbackText)
+        }
       })
       
       console.log('[TTS] Playing audio from backend')
     } catch (err) {
       console.error('[TTS] Error playing audio from URL:', err)
+      this.isPlayingAudio = false
+      this.currentAudio = null
+      
+      // Error recovery: Fallback to text-to-speech
+      if (fallbackText) {
+        console.log('[TTS] Falling back to browser TTS due to exception')
+        this.fallbackBrowserTTS(fallbackText)
+      }
+    }
+  }
+  
+  private stopAudio() {
+    // Stop HTML5 audio if playing
+    if (this.currentAudio) {
+      try {
+        this.currentAudio.pause()
+        this.currentAudio.currentTime = 0
+        this.currentAudio = null
+      } catch (e) {
+        console.warn('[TTS] Error stopping audio:', e)
+      }
+    }
+    
+    // Stop browser TTS if speaking
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel()
+      } catch (e) {
+        console.warn('[TTS] Error stopping speech synthesis:', e)
+      }
+    }
+    
+    this.isPlayingAudio = false
+  }
+  
+  private announceAudioState(state: 'playing' | 'finished' | 'error') {
+    // Accessibility: Announce audio state for screen readers
+    if (this.container) {
+      const announcement = this.container.querySelector('.snip-audio-announcement') as HTMLElement
+      if (announcement) {
+        announcement.remove()
+      }
+      
+      const ariaLive = document.createElement('div')
+      ariaLive.className = 'snip-audio-announcement'
+      ariaLive.setAttribute('role', 'status')
+      ariaLive.setAttribute('aria-live', 'polite')
+      ariaLive.setAttribute('aria-atomic', 'true')
+      ariaLive.style.cssText = 'position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden;'
+      
+      const messages: Record<string, string> = {
+        playing: 'Audio response is playing',
+        finished: 'Audio response finished',
+        error: 'Audio playback failed, using text-to-speech'
+      }
+      
+      ariaLive.textContent = messages[state] || ''
+      this.container.appendChild(ariaLive)
+      
+      // Clean up after announcement
+      setTimeout(() => {
+        ariaLive.remove()
+      }, 1000)
     }
   }
 
@@ -544,9 +649,47 @@ class SnipWidget {
     }
     
     try {
-      // Cancel any ongoing speech
-      window.speechSynthesis.cancel()
+      // Stop any currently playing audio
+      this.stopAudio()
       
+      // Handle long text by splitting into chunks (browser TTS has limits)
+      const maxLength = 200 // Conservative limit per chunk
+      if (text.length > maxLength) {
+        // Split by sentences for natural breaks
+        const sentences = text.match(/[^.!?]+[.!?]+/g) || [text]
+        let currentChunk = ''
+        
+        const speakChunk = (chunkIndex: number) => {
+          if (chunkIndex >= sentences.length) return
+          
+          const chunk = sentences[chunkIndex].trim()
+          if (!chunk) {
+            speakChunk(chunkIndex + 1)
+            return
+          }
+          
+          currentChunk = chunk
+          this.speakTextChunk(chunk, () => {
+            speakChunk(chunkIndex + 1)
+          })
+        }
+        
+        speakChunk(0)
+        return
+      }
+      
+      this.speakTextChunk(text)
+    } catch (err) {
+      console.error('[TTS] Browser TTS failed:', err)
+      this.isPlayingAudio = false
+    }
+  }
+  
+  private speakTextChunk(text: string, onEnd?: () => void) {
+    if (!('speechSynthesis' in window)) return
+    
+    try {
+      this.isPlayingAudio = true
       const utterance = new SpeechSynthesisUtterance(text)
       
       // Try to find a British English voice, otherwise use default
@@ -573,14 +716,29 @@ class SnipWidget {
       utterance.pitch = 1.0
       utterance.volume = 1.0
       
-      utterance.onstart = () => console.log('[TTS] Browser speech started')
-      utterance.onend = () => console.log('[TTS] Browser speech finished')
-      utterance.onerror = (e) => console.error('[TTS] Browser speech error:', e)
+      utterance.onstart = () => {
+        console.log('[TTS] Browser speech started')
+        this.announceAudioState('playing')
+      }
+      
+      utterance.onend = () => {
+        console.log('[TTS] Browser speech finished')
+        this.isPlayingAudio = false
+        this.announceAudioState('finished')
+        if (onEnd) onEnd()
+      }
+      
+      utterance.onerror = (e) => {
+        console.error('[TTS] Browser speech error:', e)
+        this.isPlayingAudio = false
+        this.announceAudioState('error')
+        if (onEnd) onEnd()
+      }
       
       // Voices may not be loaded immediately
       if (voices.length === 0) {
         window.speechSynthesis.onvoiceschanged = () => {
-          this.fallbackBrowserTTS(text)
+          this.speakTextChunk(text, onEnd)
         }
         return
       }
@@ -588,7 +746,9 @@ class SnipWidget {
       window.speechSynthesis.speak(utterance)
       console.log('[TTS] Browser TTS playing')
     } catch (err) {
-      console.error('[TTS] Browser TTS failed:', err)
+      console.error('[TTS] Browser TTS chunk failed:', err)
+      this.isPlayingAudio = false
+      if (onEnd) onEnd()
     }
   }
 
@@ -661,7 +821,7 @@ class SnipWidget {
       
       // Use audio_url from backend if provided (already generated), otherwise generate TTS
       if (data.audio_url) {
-        this.playAudioFromUrl(data.audio_url)
+        this.playAudioFromUrl(data.audio_url, data.response) // Pass text as fallback
       } else {
         // Fallback: generate TTS client-side if backend didn't provide audio
         this.generateAndPlayAudio(data.response)

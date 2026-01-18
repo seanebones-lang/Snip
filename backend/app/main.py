@@ -41,27 +41,57 @@ XAI_REALTIME_WS = "wss://api.x.ai/v1/realtime"
 XAI_EPHEMERAL_TOKEN_ENDPOINT = "https://api.x.ai/v1/realtime/client_secrets"
 
 
-async def get_xai_ephemeral_token(api_key: str) -> str:
+async def get_xai_ephemeral_token(api_key: str, retries: int = 3) -> str:
     """
     Get ephemeral token for X.AI Grok Voice Agent API
     Uses the X.AI API key to get a short-lived token for WebSocket connection
+    Includes retry logic for resilience
     """
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(
-                XAI_EPHEMERAL_TOKEN_ENDPOINT,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={}  # Empty JSON body
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data["value"]  # X.AI returns "value" not "token"
-    except Exception as e:
-        print(f"Failed to get X.AI ephemeral token: {e}")
-        raise
+    last_error = None
+    
+    for attempt in range(retries):
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    XAI_EPHEMERAL_TOKEN_ENDPOINT,
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={}  # Empty JSON body
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data["value"]  # X.AI returns "value" not "token"
+        except httpx.TimeoutException as e:
+            last_error = e
+            if attempt < retries - 1:
+                wait_time = (attempt + 1) * 0.5  # Exponential backoff
+                print(f"[X.AI TTS] Ephemeral token timeout (attempt {attempt + 1}/{retries}), retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+                continue
+        except httpx.HTTPStatusError as e:
+            # Don't retry on auth errors (401/403) or client errors (4xx)
+            if e.response.status_code in [401, 403, 400]:
+                print(f"[X.AI TTS] Ephemeral token auth/client error: {e.response.status_code}")
+                raise
+            last_error = e
+            if attempt < retries - 1:
+                wait_time = (attempt + 1) * 0.5
+                print(f"[X.AI TTS] Ephemeral token HTTP error (attempt {attempt + 1}/{retries}), retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+                continue
+        except Exception as e:
+            last_error = e
+            if attempt < retries - 1:
+                wait_time = (attempt + 1) * 0.5
+                print(f"[X.AI TTS] Ephemeral token error (attempt {attempt + 1}/{retries}), retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+                continue
+    
+    # All retries exhausted
+    print(f"[X.AI TTS] Failed to get ephemeral token after {retries} attempts: {last_error}")
+    raise last_error or Exception("Failed to get ephemeral token")
 
 
 async def generate_xai_tts_audio(text: str, api_key: str, voice: str = "Ara") -> Optional[bytes]:
@@ -628,10 +658,16 @@ Use this context to answer questions when relevant.
                 print(f"[TTS] Generating audio for: {response_text[:50]}...")
                 
                 # Generate audio using X.AI Grok Voice Agent API
+                # Voice options: Ara (default), Leo, Rex, Sal, Eve
+                # TODO: Make voice configurable per-client via ClientConfig.voice field
+                voice = getattr(config, 'tts_voice', None) or os.getenv('XAI_TTS_VOICE', 'Ara')
+                if voice not in ['Ara', 'Leo', 'Rex', 'Sal', 'Eve']:
+                    voice = 'Ara'  # Fallback to safe default
+                
                 pcm_audio = await generate_xai_tts_audio(
                     text=response_text,
                     api_key=api_key,
-                    voice="Ara"  # Can be: Ara, Leo, Rex, Sal, Eve
+                    voice=voice
                 )
                 
                 if pcm_audio:
