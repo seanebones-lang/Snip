@@ -121,6 +121,10 @@ class WidgetConfig(BaseModel):
     position: str
     autoOpen: bool
     showBranding: bool
+    width: Optional[int] = None
+    height: Optional[int] = None
+    customCss: Optional[str] = None
+    theme: Optional[str] = None
 
 
 # ============== Chat Schemas ==============

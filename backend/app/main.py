@@ -434,21 +434,9 @@ async def get_widget_config(
         if not allowed:
             raise HTTPException(status_code=403, detail="Domain not allowed")
     
-    return WidgetConfig(
-        botName=config.bot_name,
-        logoUrl=config.logo_url,
-        colors={
-            "primary": config.primary_color,
-            "secondary": config.secondary_color,
-            "background": config.background_color,
-            "text": config.text_color,
-        },
-        welcomeMessage=config.welcome_message,
-        placeholderText=config.placeholder_text,
-        position=config.position,
-        autoOpen=config.auto_open,
-        showBranding=config.show_branding,
-    )
+    # Use to_widget_config method which includes all new fields
+    widget_config_dict = config.to_widget_config()
+    return WidgetConfig(**widget_config_dict)
 
 
 # ============== Chat Endpoint ==============
