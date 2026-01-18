@@ -310,6 +310,7 @@ async def healthz_db(db: Session = Depends(get_db)):
     """Database health check - verifies schema and migration status"""
     try:
         from sqlalchemy import text, inspect
+        from .database import engine
         
         inspector = inspect(engine)
         
