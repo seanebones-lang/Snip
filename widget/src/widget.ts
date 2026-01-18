@@ -16,9 +16,13 @@ interface WidgetConfig {
   }
   welcomeMessage: string
   placeholderText: string
-  position: 'bottom-right' | 'bottom-left'
+  position: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center'
   autoOpen: boolean
   showBranding: boolean
+  width?: number | null
+  height?: number | null
+  customCss?: string | null
+  theme?: string | null
 }
 
 interface Message {
@@ -114,6 +118,19 @@ class SnipWidget {
     if (!this.config) return
     
     const { colors } = this.config
+    const width = this.config.width || 380
+    const height = this.config.height || 550
+    
+    // Calculate position based on extended options
+    const position = this.config.position || 'bottom-right'
+    let positionCss = ''
+    if (position === 'center') {
+      positionCss = 'left: 50%; top: 50%; transform: translate(-50%, -50%);'
+    } else if (position.includes('top')) {
+      positionCss = position === 'top-right' ? 'right: 20px; top: 20px;' : 'left: 20px; top: 20px;'
+    } else {
+      positionCss = position === 'bottom-right' ? 'right: 20px; bottom: 20px;' : 'left: 20px; bottom: 20px;'
+    }
     
     const style = document.createElement('style')
     style.textContent = `
@@ -124,8 +141,7 @@ class SnipWidget {
         --snip-text: ${colors.text};
         
         position: fixed;
-        ${this.config.position === 'bottom-right' ? 'right: 20px;' : 'left: 20px;'}
-        bottom: 20px;
+        ${positionCss}
         z-index: 999999;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
       }
@@ -157,16 +173,15 @@ class SnipWidget {
       
       .snip-chat {
         display: none;
-        width: 380px;
-        height: 550px;
+        width: ${width}px;
+        height: ${height}px;
         background: var(--snip-bg);
         border-radius: 16px;
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
         flex-direction: column;
         overflow: hidden;
         position: absolute;
-        bottom: 70px;
-        ${this.config.position === 'bottom-right' ? 'right: 0;' : 'left: 0;'}
+        ${position === 'center' ? 'top: 0; left: 0;' : position.includes('top') ? (position === 'top-right' ? 'top: 70px; right: 0;' : 'top: 70px; left: 0;') : (position === 'bottom-right' ? 'bottom: 70px; right: 0;' : 'bottom: 70px; left: 0;')}
       }
       
       .snip-chat.open {
@@ -383,12 +398,43 @@ class SnipWidget {
         .snip-chat {
           width: calc(100vw - 40px);
           height: calc(100vh - 100px);
-          bottom: 70px;
-          ${this.config.position === 'bottom-right' ? 'right: 0;' : 'left: 0;'}
+          ${position === 'center' ? 'top: 50%; left: 50%; transform: translate(-50%, -50%);' : position.includes('top') ? (position === 'top-right' ? 'top: 70px; right: 0;' : 'top: 70px; left: 0;') : (position === 'bottom-right' ? 'bottom: 70px; right: 0;' : 'bottom: 70px; left: 0;')}
         }
       }
+      ${this.config.customCss || ''}
     `
     document.head.appendChild(style)
+    
+    // Apply theme if specified
+    if (this.config.theme && this.config.theme !== 'auto' && this.config.theme !== 'custom') {
+      const themeStyle = document.createElement('style')
+      if (this.config.theme === 'light') {
+        themeStyle.textContent = `
+          .snip-widget-container {
+            --snip-bg: #ffffff;
+            --snip-text: #111827;
+          }
+          .snip-message.assistant {
+            background: rgba(0, 0, 0, 0.05);
+            color: #111827;
+          }
+        `
+      } else if (this.config.theme === 'dark') {
+        themeStyle.textContent = `
+          .snip-widget-container {
+            --snip-bg: #111827;
+            --snip-text: #F3F4F6;
+          }
+          .snip-message.assistant {
+            background: rgba(255, 255, 255, 0.1);
+            color: #F3F4F6;
+          }
+        `
+      }
+      if (themeStyle.textContent) {
+        document.head.appendChild(themeStyle)
+      }
+    }
   }
 
   private render() {
