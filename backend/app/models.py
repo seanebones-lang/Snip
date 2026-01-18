@@ -98,9 +98,15 @@ class ClientConfig(Base):
     tts_voice = Column(String(20), nullable=True)  # 'Ara', 'Leo', 'Rex', 'Sal', 'Eve' (default: 'Ara')
     
     # Widget behavior
-    position = Column(String(20), default="bottom-right", nullable=False)  # bottom-right, bottom-left
+    position = Column(String(20), default="bottom-right", nullable=False)  # bottom-right, bottom-left, top-right, top-left, center
     auto_open = Column(Boolean, default=False, nullable=False)
     show_branding = Column(Boolean, default=True, nullable=False)  # "Powered by Snip"
+    
+    # Advanced customization
+    widget_width = Column(Integer, nullable=True)  # Custom width in pixels (default: 380px)
+    widget_height = Column(Integer, nullable=True)  # Custom height in pixels (default: 550px)
+    custom_css = Column(Text, nullable=True)  # Custom CSS for advanced styling
+    theme = Column(String(50), nullable=True)  # Theme preset: 'light', 'dark', 'auto', 'custom'
     
     # Security
     allowed_domains = Column(JSON, default=list, nullable=False)  # List of domains where widget can load
@@ -131,6 +137,10 @@ class ClientConfig(Base):
             "position": self.position,
             "autoOpen": self.auto_open,
             "showBranding": self.show_branding,
+            "width": self.widget_width,
+            "height": self.widget_height,
+            "customCss": self.custom_css,
+            "theme": self.theme or "auto",
         }
 
 

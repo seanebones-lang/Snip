@@ -23,6 +23,10 @@ interface Config {
   ai_model?: string | null
   ai_api_key_set: boolean
   tts_voice?: string | null
+  widget_width?: number | null
+  widget_height?: number | null
+  custom_css?: string | null
+  theme?: string | null
 }
 
 function Branding({ apiKey }: BrandingProps) {
@@ -400,6 +404,9 @@ function Branding({ apiKey }: BrandingProps) {
                 >
                   <option value="bottom-right">Bottom Right</option>
                   <option value="bottom-left">Bottom Left</option>
+                  <option value="top-right">Top Right</option>
+                  <option value="top-left">Top Left</option>
+                  <option value="center">Center</option>
                 </select>
               </div>
               
@@ -426,6 +433,69 @@ function Branding({ apiKey }: BrandingProps) {
                 <option value="yes">Yes</option>
                 <option value="no">No (Premium only)</option>
               </select>
+            </div>
+          </div>
+          
+          <div className="card">
+            <h2 className="card-title">Advanced Customization</h2>
+            
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Widget Width (px)</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={config.widget_width || 380}
+                  onChange={(e) => updateConfig('widget_width', e.target.value ? parseInt(e.target.value) : null)}
+                  min={200}
+                  max={800}
+                  placeholder="380"
+                />
+                <small style={{ color: 'var(--text-muted)', fontSize: 12 }}>Default: 380px (200-800px)</small>
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Widget Height (px)</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={config.widget_height || 550}
+                  onChange={(e) => updateConfig('widget_height', e.target.value ? parseInt(e.target.value) : null)}
+                  min={300}
+                  max={1000}
+                  placeholder="550"
+                />
+                <small style={{ color: 'var(--text-muted)', fontSize: 12 }}>Default: 550px (300-1000px)</small>
+              </div>
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Theme</label>
+              <select
+                className="form-input"
+                value={config.theme || 'auto'}
+                onChange={(e) => updateConfig('theme', e.target.value)}
+              >
+                <option value="auto">Auto (System Preference)</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="custom">Custom (Use Custom CSS)</option>
+              </select>
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Custom CSS</label>
+              <textarea
+                className="form-input"
+                value={config.custom_css || ''}
+                onChange={(e) => updateConfig('custom_css', e.target.value || null)}
+                placeholder=".snip-chat { border-radius: 20px; }"
+                rows={6}
+                style={{ fontFamily: 'monospace', fontSize: 13 }}
+              />
+              <small style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                Advanced: Add custom CSS to further customize the widget appearance. Use selectors like .snip-chat, .snip-button, etc.
+              </small>
             </div>
           </div>
         </div>

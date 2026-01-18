@@ -56,10 +56,14 @@ class ConfigUpdate(BaseModel):
     welcome_message: Optional[str] = Field(None, max_length=1000)
     placeholder_text: Optional[str] = Field(None, max_length=255)
     system_prompt: Optional[str] = Field(None, max_length=5000)
-    position: Optional[str] = Field(None, pattern=r"^(bottom-right|bottom-left)$")
+    position: Optional[str] = Field(None, pattern=r"^(bottom-right|bottom-left|top-right|top-left|center)$")
     auto_open: Optional[bool] = None
     show_branding: Optional[bool] = None
     allowed_domains: Optional[List[str]] = None
+    widget_width: Optional[int] = Field(None, ge=200, le=800, description="Widget width in pixels (200-800)")
+    widget_height: Optional[int] = Field(None, ge=300, le=1000, description="Widget height in pixels (300-1000)")
+    custom_css: Optional[str] = Field(None, max_length=10000, description="Custom CSS for advanced styling")
+    theme: Optional[str] = Field(None, pattern=r"^(light|dark|auto|custom)$", description="Theme preset")
     ai_provider: Optional[str] = Field(None, description="AI provider: 'xai', 'openai', 'anthropic'")
     ai_api_key: Optional[str] = Field(None, description="Your AI API key (bring your own key)")
     ai_model: Optional[str] = Field(None, description="AI model to use (e.g., 'grok-3-fast', 'gpt-4', 'claude-3')")
@@ -81,6 +85,10 @@ class ConfigResponse(BaseModel):
     auto_open: bool
     show_branding: bool
     allowed_domains: List[str]
+    widget_width: Optional[int] = None
+    widget_height: Optional[int] = None
+    custom_css: Optional[str] = None
+    theme: Optional[str] = None
     ai_provider: Optional[str] = Field(None, description="AI provider selected")
     ai_model: Optional[str] = Field(None, description="AI model selected")
     ai_api_key_set: bool = Field(default=False, description="Whether AI API key is configured (never returns actual key)")
