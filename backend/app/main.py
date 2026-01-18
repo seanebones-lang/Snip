@@ -305,6 +305,51 @@ async def startup():
 async def healthz():
     return {"status": "ok", "service": "snip"}
 
+@app.get("/healthz/db")
+async def healthz_db(db: Session = Depends(get_db)):
+    """Database health check - verifies schema and migration status"""
+    try:
+        from sqlalchemy import text, inspect
+        
+        inspector = inspect(engine)
+        
+        # Check if client_configs table exists
+        tables = inspector.get_table_names()
+        has_client_configs = "client_configs" in tables
+        
+        # Check for required columns
+        columns = {}
+        if has_client_configs:
+            cols = inspector.get_columns("client_configs")
+            columns = {col["name"]: col["type"] for col in cols}
+        
+        required_columns = ["widget_width", "widget_height", "custom_css", "theme"]
+        missing_columns = [col for col in required_columns if col not in columns]
+        
+        return {
+            "status": "ok",
+            "service": "snip",
+            "database": {
+                "connected": True,
+                "tables": {"client_configs": has_client_configs},
+                "columns": {
+                    "exists": list(columns.keys()),
+                    "required": required_columns,
+                    "missing": missing_columns
+                },
+                "migration_status": "complete" if not missing_columns else "pending"
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "service": "snip",
+            "database": {
+                "connected": False,
+                "error": str(e)
+            }
+        }
+
 
 # ============== Client Management ==============
 
