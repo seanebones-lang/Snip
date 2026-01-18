@@ -347,14 +347,18 @@ async def create_client(
         db.add(client)
         db.flush()
         
-        # Create default config with minimal required fields
-        # New customization fields are nullable and will default to NULL
-        config = ClientConfig(
-            client_id=client.id,
-            bot_name=f"{client_data.company_name} Assistant",
-            welcome_message=f"Hello! Welcome to {client_data.company_name}. How can I help you today?"
-            # widget_width, widget_height, custom_css, theme are nullable and default to NULL
-        )
+        # Create default config - only set required fields
+        # Optional customization fields (widget_width, widget_height, custom_css, theme)
+        # are nullable in the model and will default to NULL in the database
+        config_data = {
+            "client_id": client.id,
+            "bot_name": f"{client_data.company_name} Assistant",
+            "welcome_message": f"Hello! Welcome to {client_data.company_name}. How can I help you today?"
+        }
+        
+        # Try to create config with minimal fields first
+        # If migration hasn't run, these required fields should still work
+        config = ClientConfig(**config_data)
         db.add(config)
         
         db.commit()

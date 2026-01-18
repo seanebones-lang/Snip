@@ -32,11 +32,14 @@ def get_db():
 
 def init_db():
     """Initialize database tables and run migrations"""
-    # Create all tables first
+    # Create all tables first - this will create tables with all columns defined in models
+    # If table already exists without new columns, we'll add them via migration below
     try:
         Base.metadata.create_all(bind=engine)
+        print("✅ Database tables verified/created")
     except Exception as e:
         print(f"⚠️ Table creation warning: {e}")
+        # Continue anyway - migration below will handle missing columns
     
     # Run migrations: Add columns if they don't exist
     # PostgreSQL supports IF NOT EXISTS for columns (9.5+)
