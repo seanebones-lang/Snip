@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MessageSquare, Zap, FileText, Calendar } from 'lucide-react'
+import { MessageSquare, Zap, FileText, Calendar, TrendingUp, Clock } from 'lucide-react'
 
 interface UsageProps {
   apiKey: string
@@ -21,6 +21,7 @@ interface UsageData {
 
 function Usage({ apiKey }: UsageProps) {
   const [usage, setUsage] = useState<UsageData | null>(null)
+  const [conversations, setConversations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [days, setDays] = useState(30)
   
@@ -28,11 +29,20 @@ function Usage({ apiKey }: UsageProps) {
     const fetchUsage = async () => {
       setLoading(true)
       try {
-        const res = await fetch(`/api/usage?days=${days}`, {
-          headers: { 'X-API-Key': apiKey }
-        })
-        if (res.ok) {
-          setUsage(await res.json())
+        const [usageRes, conversationsRes] = await Promise.all([
+          fetch(`/api/usage?days=${days}`, {
+            headers: { 'X-API-Key': apiKey }
+          }),
+          fetch(`/api/conversations?limit=100`, {
+            headers: { 'X-API-Key': apiKey }
+          })
+        ])
+        if (usageRes.ok) {
+          setUsage(await usageRes.json())
+        }
+        if (conversationsRes.ok) {
+          const convData = await conversationsRes.json()
+          setConversations(convData.conversations || [])
         }
       } catch (error) {
         console.error('Failed to fetch usage:', error)
@@ -43,6 +53,26 @@ function Usage({ apiKey }: UsageProps) {
     
     fetchUsage()
   }, [apiKey, days])
+
+  // Calculate popular questions
+  const getPopularQuestions = () => {
+    const questionMap = new Map<string, number>()
+    conversations.forEach(conv => {
+      conv.messages?.forEach((msg: any) => {
+        if (msg.role === 'user' && msg.content) {
+          const question = msg.content.trim()
+          if (question.length > 0 && question.length < 200) {
+            questionMap.set(question, (questionMap.get(question) || 0) + 1)
+          }
+        }
+      })
+    })
+    
+    return Array.from(questionMap.entries())
+      .map(([question, count]) => ({ question, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+  }
   
   const getMaxValue = (data: DailyUsage[], key: keyof DailyUsage) => {
     return Math.max(...data.map(d => d[key] as number), 1)
@@ -214,36 +244,116 @@ function Usage({ apiKey }: UsageProps) {
         )}
       </div>
       
-      <div className="card">
-        <h2 className="card-title" style={{ marginBottom: 16 }}>Daily Breakdown</h2>
-        
-        {usage && usage.daily_usage.length > 0 ? (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 500, fontSize: 14 }}>Date</th>
-                  <th style={{ textAlign: 'right', padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 500, fontSize: 14 }}>Messages</th>
-                  <th style={{ textAlign: 'right', padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 500, fontSize: 14 }}>Tokens</th>
-                  <th style={{ textAlign: 'right', padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 500, fontSize: 14 }}>RAG Queries</th>
-                </tr>
-              </thead>
-              <tbody>
-                {usage.daily_usage.map(day => (
-                  <tr key={day.date} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '12px 16px' }}>{day.date}</td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>{day.message_count.toLocaleString()}</td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>{day.token_count.toLocaleString()}</td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>{day.rag_query_count}</td>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+        <div className="card">
+          <h2 className="card-title" style={{ marginBottom: 16 }}>Daily Breakdown</h2>
+          
+          {usage && usage.daily_usage.length > 0 ? (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 500, fontSize: 14 }}>Date</th>
+                    <th style={{ textAlign: 'right', padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 500, fontSize: 14 }}>Messages</th>
+                    <th style={{ textAlign: 'right', padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 500, fontSize: 14 }}>Tokens</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p style={{ color: 'var(--text-muted)' }}>No data available</p>
-        )}
+                </thead>
+                <tbody>
+                  {usage.daily_usage.slice().reverse().slice(0, 10).map(day => (
+                    <tr key={day.date} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '12px 16px', fontSize: 13 }}>{day.date}</td>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: 13 }}>{day.message_count.toLocaleString()}</td>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: 13 }}>{day.token_count.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-muted)' }}>No data available</p>
+          )}
+        </div>
+
+        <div className="card">
+          <h2 className="card-title" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <TrendingUp size={20} />
+            Popular Questions
+          </h2>
+          
+          {getPopularQuestions().length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {getPopularQuestions().map((item, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: 12,
+                    background: 'var(--bg-input)',
+                    borderRadius: 8,
+                    border: '1px solid var(--border)'
+                  }}
+                >
+                  <div style={{ fontSize: 13, marginBottom: 4, fontWeight: 500, color: 'var(--text)' }}>
+                    {item.question}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    Asked {item.count} {item.count === 1 ? 'time' : 'times'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+              No conversation data yet. Questions will appear here as visitors chat with your bot.
+            </p>
+          )}
+        </div>
       </div>
+
+      {usage && usage.daily_usage.length > 0 && (
+        <div className="card">
+          <h2 className="card-title" style={{ marginBottom: 16 }}>Trends</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            <div style={{ padding: 16, background: 'var(--bg-input)', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Growth Rate</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--primary)' }}>
+                {usage.daily_usage.length > 1 ? (
+                  (() => {
+                    const firstHalf = usage.daily_usage.slice(0, Math.floor(usage.daily_usage.length / 2))
+                    const secondHalf = usage.daily_usage.slice(Math.floor(usage.daily_usage.length / 2))
+                    const firstAvg = firstHalf.reduce((sum, d) => sum + d.message_count, 0) / firstHalf.length
+                    const secondAvg = secondHalf.reduce((sum, d) => sum + d.message_count, 0) / secondHalf.length
+                    const growth = firstAvg > 0 ? ((secondAvg - firstAvg) / firstAvg * 100) : 0
+                    return `${growth >= 0 ? '+' : ''}${Math.round(growth)}%`
+                  })()
+                ) : '0%'}
+              </div>
+            </div>
+            <div style={{ padding: 16, background: 'var(--bg-input)', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Peak Day</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
+                {(() => {
+                  const peak = usage.daily_usage.reduce((max, d) => d.message_count > max.message_count ? d : max, usage.daily_usage[0])
+                  return peak ? peak.message_count.toLocaleString() : '0'
+                })()}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                {(() => {
+                  const peak = usage.daily_usage.reduce((max, d) => d.message_count > max.message_count ? d : max, usage.daily_usage[0])
+                  return peak ? peak.date : ''
+                })()}
+              </div>
+            </div>
+            <div style={{ padding: 16, background: 'var(--bg-input)', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Avg per Day</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
+                {usage.total_messages > 0 && usage.daily_usage.length > 0
+                  ? Math.round(usage.total_messages / usage.daily_usage.length).toLocaleString()
+                  : '0'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

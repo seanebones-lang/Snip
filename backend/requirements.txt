@@ -21,6 +21,9 @@ sentence-transformers==2.3.1
 pypdf==4.0.1
 python-docx==1.1.0
 tiktoken==0.5.2
+beautifulsoup4==4.12.3  # HTML parsing
+pandas==2.2.1  # CSV/Excel support
+openpyxl==3.1.2  # Excel file support
 
 # Utilities
 aiofiles==23.2.1

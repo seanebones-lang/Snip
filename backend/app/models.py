@@ -56,6 +56,8 @@ class Client(Base):
     config = relationship("ClientConfig", back_populates="client", uselist=False, cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="client", cascade="all, delete-orphan")
     usage_records = relationship("UsageRecord", back_populates="client", cascade="all, delete-orphan")
+    conversations = relationship("Conversation", back_populates="client", cascade="all, delete-orphan")
+    faqs = relationship("FAQ", back_populates="client", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Client {self.company_name} ({self.email})>"
@@ -91,6 +93,9 @@ class ClientConfig(Base):
     ai_provider = Column(String(50), nullable=True)  # 'xai', 'openai', 'anthropic', etc.
     ai_api_key = Column(Text, nullable=True)  # Customer's own AI API key (encrypted)
     ai_model = Column(String(100), nullable=True)  # e.g., 'grok-3-fast', 'gpt-4', 'claude-3'
+    
+    # TTS Voice Configuration (xAI Grok Voice Agent)
+    tts_voice = Column(String(20), nullable=True)  # 'Ara', 'Leo', 'Rex', 'Sal', 'Eve' (default: 'Ara')
     
     # Widget behavior
     position = Column(String(20), default="bottom-right", nullable=False)  # bottom-right, bottom-left
@@ -140,7 +145,7 @@ class Document(Base):
     
     # File info
     filename = Column(String(255), nullable=False)
-    file_type = Column(String(50), nullable=False)  # pdf, docx, txt
+    file_type = Column(String(50), nullable=False)  # pdf, docx, txt, md, html, csv, xlsx, xls
     file_size = Column(Integer, nullable=False)  # bytes
     
     # Processing status
@@ -187,3 +192,79 @@ class UsageRecord(Base):
     
     def __repr__(self):
         return f"<UsageRecord {self.client_id} on {self.date}>"
+
+
+class Conversation(Base):
+    """
+    Conversation threads between users and chatbot
+    """
+    __tablename__ = "conversations"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Conversation metadata
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    last_message_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    message_count = Column(Integer, default=0, nullable=False)
+    
+    # Optional: User identifier (if tracking specific users)
+    user_id = Column(String(255), nullable=True, index=True)
+    
+    # Relationship
+    client = relationship("Client", back_populates="conversations")
+    messages = relationship("ConversationMessage", back_populates="conversation", cascade="all, delete-orphan", order_by="ConversationMessage.created_at")
+    
+    def __repr__(self):
+        return f"<Conversation {self.id} ({self.message_count} messages)>"
+
+
+class ConversationMessage(Base):
+    """
+    Individual messages within a conversation
+    """
+    __tablename__ = "conversation_messages"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Message content
+    role = Column(String(20), nullable=False)  # 'user' or 'assistant'
+    content = Column(Text, nullable=False)
+    
+    # Timestamp
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    
+    # Relationship
+    conversation = relationship("Conversation", back_populates="messages")
+    
+    def __repr__(self):
+        return f"<ConversationMessage {self.role}: {self.content[:50]}...>"
+
+
+class FAQ(Base):
+    """
+    Frequently Asked Questions for clients
+    """
+    __tablename__ = "faqs"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # FAQ content
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    
+    # Optional: Categories/tags
+    category = Column(String(100), nullable=True)
+    priority = Column(Integer, default=0, nullable=False)  # Higher = shown first
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Relationship
+    client = relationship("Client", back_populates="faqs")
+    
+    def __repr__(self):
+        return f"<FAQ {self.question[:50]}...>"

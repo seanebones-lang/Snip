@@ -20,14 +20,16 @@ from uuid import UUID
 
 from .config import get_settings
 from .database import get_db, init_db
-from .models import Client, ClientConfig, Document, UsageRecord, TierEnum, DocumentStatus
+from .models import Client, ClientConfig, Document, UsageRecord, TierEnum, DocumentStatus, Conversation, ConversationMessage, FAQ
 from .schemas import (
     ClientCreate, ClientResponse, ClientWithApiKey,
     ConfigUpdate, ConfigResponse, WidgetConfig,
     ChatRequest, ChatResponse,
     DocumentResponse, DocumentList,
     UsageSummary, UsageResponse,
-    EmbedSnippet
+    EmbedSnippet,
+    FAQCreate, FAQUpdate, FAQResponse, FAQList,
+    ConversationResponse, ConversationList, MessageResponse
 )
 from .auth import (
     generate_api_key, hash_api_key,
@@ -36,15 +38,15 @@ from .auth import (
 
 settings = get_settings()
 
-# X.AI TTS Configuration
-XAI_REALTIME_WS = "wss://api.x.ai/v1/realtime"
-XAI_EPHEMERAL_TOKEN_ENDPOINT = "https://api.x.ai/v1/realtime/client_secrets"
+# TTS Configuration (Voice API endpoints)
+TTS_REALTIME_WS = "wss://api.x.ai/v1/realtime"
+TTS_EPHEMERAL_TOKEN_ENDPOINT = "https://api.x.ai/v1/realtime/client_secrets"
 
 
-async def get_xai_ephemeral_token(api_key: str, retries: int = 3) -> str:
+async def get_ephemeral_token(api_key: str, retries: int = 3) -> str:
     """
-    Get ephemeral token for X.AI Grok Voice Agent API
-    Uses the X.AI API key to get a short-lived token for WebSocket connection
+    Get ephemeral token for Voice API
+    Uses API key to get a short-lived token for WebSocket connection
     Includes retry logic for resilience
     """
     last_error = None
@@ -53,7 +55,7 @@ async def get_xai_ephemeral_token(api_key: str, retries: int = 3) -> str:
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(
-                    XAI_EPHEMERAL_TOKEN_ENDPOINT,
+                    TTS_EPHEMERAL_TOKEN_ENDPOINT,
                     headers={
                         "Authorization": f"Bearer {api_key}",
                         "Content-Type": "application/json"
@@ -62,45 +64,45 @@ async def get_xai_ephemeral_token(api_key: str, retries: int = 3) -> str:
                 )
                 response.raise_for_status()
                 data = response.json()
-                return data["value"]  # X.AI returns "value" not "token"
+                return data["value"]  # API returns "value" not "token"
         except httpx.TimeoutException as e:
             last_error = e
             if attempt < retries - 1:
                 wait_time = (attempt + 1) * 0.5  # Exponential backoff
-                print(f"[X.AI TTS] Ephemeral token timeout (attempt {attempt + 1}/{retries}), retrying in {wait_time}s...")
+                print(f"[TTS] Ephemeral token timeout (attempt {attempt + 1}/{retries}), retrying in {wait_time}s...")
                 await asyncio.sleep(wait_time)
                 continue
         except httpx.HTTPStatusError as e:
             # Don't retry on auth errors (401/403) or client errors (4xx)
             if e.response.status_code in [401, 403, 400]:
-                print(f"[X.AI TTS] Ephemeral token auth/client error: {e.response.status_code}")
+                print(f"[TTS] Ephemeral token auth/client error: {e.response.status_code}")
                 raise
             last_error = e
             if attempt < retries - 1:
                 wait_time = (attempt + 1) * 0.5
-                print(f"[X.AI TTS] Ephemeral token HTTP error (attempt {attempt + 1}/{retries}), retrying in {wait_time}s...")
+                print(f"[TTS] Ephemeral token HTTP error (attempt {attempt + 1}/{retries}), retrying in {wait_time}s...")
                 await asyncio.sleep(wait_time)
                 continue
         except Exception as e:
             last_error = e
             if attempt < retries - 1:
                 wait_time = (attempt + 1) * 0.5
-                print(f"[X.AI TTS] Ephemeral token error (attempt {attempt + 1}/{retries}), retrying in {wait_time}s...")
+                print(f"[TTS] Ephemeral token error (attempt {attempt + 1}/{retries}), retrying in {wait_time}s...")
                 await asyncio.sleep(wait_time)
                 continue
     
     # All retries exhausted
-    print(f"[X.AI TTS] Failed to get ephemeral token after {retries} attempts: {last_error}")
+    print(f"[TTS] Failed to get ephemeral token after {retries} attempts: {last_error}")
     raise last_error or Exception("Failed to get ephemeral token")
 
 
-async def generate_xai_tts_audio(text: str, api_key: str, voice: str = "Ara") -> Optional[bytes]:
+async def generate_tts_audio(text: str, api_key: str, voice: str = "Ara") -> Optional[bytes]:
     """
-    Generate TTS audio using X.AI Grok Voice Agent API via WebSocket
+    Generate TTS audio via WebSocket (Voice API)
     
     Args:
         text: Text to convert to speech
-        api_key: X.AI API key
+        api_key: API key for voice generation
         voice: Voice name (Ara, Leo, Rex, Sal, Eve)
     
     Returns:
@@ -108,11 +110,11 @@ async def generate_xai_tts_audio(text: str, api_key: str, voice: str = "Ara") ->
     """
     try:
         # Step 1: Get ephemeral token
-        token = await get_xai_ephemeral_token(api_key)
+        token = await get_ephemeral_token(api_key)
         
         # Step 2: Connect via WebSocket
         async with websockets.connect(
-            XAI_REALTIME_WS,
+            TTS_REALTIME_WS,
             additional_headers={"Authorization": f"Bearer {token}"},
             ping_interval=20,
             ping_timeout=10
@@ -140,13 +142,13 @@ async def generate_xai_tts_audio(text: str, api_key: str, voice: str = "Ara") ->
                     obj = json.loads(msg)
                     if obj.get("type") == "session.updated":
                         session_ready = True
-                        print(f"[X.AI TTS] Session configured with voice: {voice}")
+                        print(f"[TTS] Session configured with voice: {voice}")
                         break
                 except asyncio.TimeoutError:
                     continue
             
             if not session_ready:
-                print(f"[X.AI TTS] Warning: Session update not confirmed")
+                print(f"[TTS] Warning: Session update not confirmed")
             
             # Step 4: Create conversation item with text
             item_message = {
@@ -158,7 +160,7 @@ async def generate_xai_tts_audio(text: str, api_key: str, voice: str = "Ara") ->
                 }
             }
             await ws.send(json.dumps(item_message))
-            print(f"[X.AI TTS] Sent text input: {text[:50]}...")
+            print(f"[TTS] Sent text input: {text[:50]}...")
             
             # Wait for conversation.item.added
             item_added = False
@@ -173,7 +175,7 @@ async def generate_xai_tts_audio(text: str, api_key: str, voice: str = "Ara") ->
                     continue
             
             if not item_added:
-                print(f"[X.AI TTS] Warning: Conversation item not confirmed")
+                print(f"[TTS] Warning: Conversation item not confirmed")
             
             # Step 5: Create response to generate audio
             response_message = {
@@ -191,7 +193,7 @@ async def generate_xai_tts_audio(text: str, api_key: str, voice: str = "Ara") ->
             
             async for msg in ws:
                 if time.time() - start_time > timeout:
-                    print(f"[X.AI TTS] Timeout waiting for audio")
+                    print(f"[TTS] Timeout waiting for audio")
                     break
                 
                 try:
@@ -204,33 +206,33 @@ async def generate_xai_tts_audio(text: str, api_key: str, voice: str = "Ara") ->
                         if delta:
                             audio_bytes = base64.b64decode(delta)
                             audio_chunks.append(audio_bytes)
-                            print(f"[X.AI TTS] Received audio delta: {len(audio_bytes)} bytes")
+                            print(f"[TTS] Received audio delta: {len(audio_bytes)} bytes")
                     
                     elif msg_type in ["response.output_audio.done", "response.done"]:
-                        print(f"[X.AI TTS] Audio generation complete")
+                        print(f"[TTS] Audio generation complete")
                         break
                     
                     elif msg_type == "error":
                         error_msg = obj.get("error", {}).get("message", "Unknown error")
-                        print(f"[X.AI TTS] Error: {error_msg}")
+                        print(f"[TTS] Error: {error_msg}")
                         break
                         
                 except json.JSONDecodeError:
                     continue
                 except Exception as e:
-                    print(f"[X.AI TTS] Error processing message: {e}")
+                    print(f"[TTS] Error processing message: {e}")
                     continue
             
             if audio_chunks:
                 combined_audio = b"".join(audio_chunks)
-                print(f"[X.AI TTS] Generated {len(combined_audio)} bytes of audio")
+                print(f"[TTS] Generated {len(combined_audio)} bytes of audio")
                 return combined_audio
             else:
-                print(f"[X.AI TTS] No audio chunks received")
+                print(f"[TTS] No audio chunks received")
                 return None
                 
     except Exception as e:
-        print(f"[X.AI TTS] Failed to generate audio: {e}")
+        print(f"[TTS] Failed to generate audio: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -516,59 +518,33 @@ Use this context to answer questions when relevant.
 """
     
     # Get AI provider configuration - use client's settings if set, otherwise fallback to global
+    # White-labeled: Always use xAI in background, don't expose provider to clients
     api_key = None
-    provider = None
+    provider = 'xai'  # Always xAI for white-labeled solution
     model = None
     
-    # Check client's AI configuration first
+    # Check client's AI configuration first (if they provided their own key)
     if config.ai_api_key:
         api_key = config.ai_api_key
-        provider = config.ai_provider or 'xai'  # Default to xAI if not specified
-        model = config.ai_model or 'grok-3-fast'  # Default model based on provider
+        model = config.ai_model or 'grok-4-1-fast-non-reasoning'
     # Fallback to legacy xai_api_key if present
     elif hasattr(config, 'xai_api_key') and config.xai_api_key:
         api_key = config.xai_api_key
-        provider = 'xai'
-        model = 'grok-3-fast'
-    # Fallback to global settings
+        model = 'grok-4-1-fast-non-reasoning'
+    # Fallback to global settings (your xAI key)
     elif settings.xai_api_key:
         api_key = settings.xai_api_key
-        provider = 'xai'
-        model = 'grok-3-fast'
+        model = 'grok-4-1-fast-non-reasoning'
     
     if not api_key:
         raise HTTPException(
             status_code=500, 
-            detail="AI service not configured. Please add your AI API key in the dashboard settings."
+            detail="AI service not configured. Please contact support."
         )
     
-    # Normalize provider name
-    provider = (provider or 'xai').lower()
-    
-    # Determine API endpoint and model defaults based on provider
-    api_url = None
-    default_models = {
-        'xai': 'grok-4-1-fast-non-reasoning',  # Updated to latest fast model
-        'openai': 'gpt-4',
-        'anthropic': 'claude-3-opus-20240229'
-    }
-    
-    if provider == 'xai':
-        # Note: Chat Completions endpoint is deprecated, Responses API is preferred
-        # TODO: Migrate to /v1/responses endpoint for future-proofing
-        api_url = "https://api.x.ai/v1/chat/completions"
-        model = model or default_models['xai']
-    elif provider == 'openai':
-        api_url = "https://api.openai.com/v1/chat/completions"
-        model = model or default_models['openai']
-    elif provider == 'anthropic':
-        api_url = "https://api.anthropic.com/v1/messages"
-        model = model or default_models['anthropic']
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported AI provider: {provider}. Supported providers: xai, openai, anthropic"
-        )
+    # Always use xAI - white-labeled
+    api_url = "https://api.x.ai/v1/chat/completions"
+    model = model or 'grok-4-1-fast-non-reasoning'
     
     try:
         headers = {
@@ -576,29 +552,16 @@ Use this context to answer questions when relevant.
             "Content-Type": "application/json"
         }
         
-        if provider == 'anthropic':
-            # Anthropic uses a different API format
-            payload = {
-                "model": model,
-                "max_tokens": 500,
-                "system": base_prompt,
-                "messages": [
-                    {"role": "user", "content": request.message}
-                ]
-            }
-            headers["x-api-key"] = api_key
-            headers.pop("Authorization", None)
-        else:
-            # OpenAI and xAI use the same format
-            payload = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": base_prompt},
-                    {"role": "user", "content": request.message}
-                ],
-                "max_tokens": 500,
-                "temperature": 0.7
-            }
+        # Always use xAI format (white-labeled)
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": base_prompt},
+                {"role": "user", "content": request.message}
+            ],
+            "max_tokens": 500,
+            "temperature": 0.7
+        }
         
         response = requests.post(
             api_url,
@@ -621,11 +584,42 @@ Use this context to answer questions when relevant.
         
         result = response.json()
         
-        # Extract response text based on provider format
-        if provider == 'anthropic':
-            response_text = result["content"][0]["text"]
-        else:
-            response_text = result["choices"][0]["message"]["content"]
+        # Extract response text (always xAI format)
+        response_text = result["choices"][0]["message"]["content"]
+        
+        # Store conversation (for conversation logs feature)
+        try:
+            # Create or get conversation (simplified: one per session, or create new)
+            conversation = Conversation(
+                client_id=client.id,
+                started_at=datetime.utcnow(),
+                last_message_at=datetime.utcnow(),
+                message_count=2  # User + assistant
+            )
+            db.add(conversation)
+            db.flush()
+            
+            # Store user message
+            user_msg = ConversationMessage(
+                conversation_id=conversation.id,
+                role='user',
+                content=request.message
+            )
+            db.add(user_msg)
+            
+            # Store assistant response
+            assistant_msg = ConversationMessage(
+                conversation_id=conversation.id,
+                role='assistant',
+                content=response_text
+            )
+            db.add(assistant_msg)
+            
+            db.commit()
+        except Exception as e:
+            # Don't fail chat if conversation logging fails
+            print(f"[Conversation] Failed to store conversation: {e}")
+            db.rollback()
         
         # Track usage
         today = date.today()
@@ -650,21 +644,21 @@ Use this context to answer questions when relevant.
         
         db.commit()
         
-        # Generate TTS audio URL using X.AI Grok Voice Agent API
+        # Generate TTS audio URL (voice responses)
         audio_url = None
         try:
-            # Only generate TTS if provider is xai (X.AI supports voice generation)
-            if provider == 'xai' and api_key:
+            # Generate voice audio (always available)
+            if api_key:
                 print(f"[TTS] Generating audio for: {response_text[:50]}...")
                 
-                # Generate audio using X.AI Grok Voice Agent API
+                # Generate audio using Voice API (white-labeled)
                 # Voice options: Ara (default), Leo, Rex, Sal, Eve
-                # TODO: Make voice configurable per-client via ClientConfig.voice field
+                # Voice is configurable per-client via ClientConfig.tts_voice field
                 voice = getattr(config, 'tts_voice', None) or os.getenv('XAI_TTS_VOICE', 'Ara')
                 if voice not in ['Ara', 'Leo', 'Rex', 'Sal', 'Eve']:
                     voice = 'Ara'  # Fallback to safe default
                 
-                pcm_audio = await generate_xai_tts_audio(
+                pcm_audio = await generate_tts_audio(
                     text=response_text,
                     api_key=api_key,
                     voice=voice
@@ -679,9 +673,7 @@ Use this context to answer questions when relevant.
                     audio_url = f"data:audio/wav;base64,{audio_base64}"
                     print(f"[TTS] Successfully generated audio ({len(wav_audio)} bytes)")
                 else:
-                    print(f"[TTS] Failed to generate audio from X.AI")
-            else:
-                print(f"[TTS] Skipping TTS generation (provider: {provider})")
+                    print(f"[TTS] Failed to generate audio")
         except Exception as e:
             # TTS is optional - don't fail if it doesn't work
             print(f"[TTS] TTS generation failed (non-fatal): {e}")
@@ -804,32 +796,68 @@ async def upload_document(
             detail="Document upload requires Premium tier"
         )
     
-    # Validate file type
+    # Validate file type - Support multiple formats
     allowed_types = {
         "application/pdf": "pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
-        "text/plain": "txt"
+        "text/plain": "txt",
+        "text/markdown": "md",
+        "text/x-markdown": "md",
+        "text/html": "html",
+        "text/csv": "csv",
+        "text/comma-separated-values": "csv",
+        "application/vnd.ms-excel": "xls",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
     }
     
-    if file.content_type not in allowed_types:
+    # Also check file extension if content-type not recognized
+    file_ext_map = {
+        '.pdf': 'pdf',
+        '.docx': 'docx',
+        '.doc': 'docx',  # Try to handle .doc files
+        '.txt': 'txt',
+        '.md': 'md',
+        '.markdown': 'md',
+        '.html': 'html',
+        '.htm': 'html',
+        '.csv': 'csv',
+        '.xlsx': 'xlsx',
+        '.xls': 'xls',
+    }
+    
+    file_type = None
+    if file.content_type in allowed_types:
+        file_type = allowed_types[file.content_type]
+    elif file.filename:
+        # Try to determine from extension
+        import os
+        ext = os.path.splitext(file.filename.lower())[1]
+        file_type = file_ext_map.get(ext)
+    
+    if not file_type:
         raise HTTPException(
             status_code=400,
-            detail=f"File type not supported. Allowed: PDF, DOCX, TXT"
+            detail=f"File type not supported. Supported: PDF, DOCX, TXT, MD, HTML, CSV, XLSX, XLS"
         )
     
     # Read file
     contents = await file.read()
     file_size = len(contents)
     
-    # Max 10MB
-    if file_size > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+    # Max 500MB (50x increase from 10MB for enterprise document support)
+    MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"File too large (max {MAX_FILE_SIZE // (1024*1024)}MB). "
+                   "Large files are processed asynchronously and may take several minutes."
+        )
     
     # Create document record with PENDING status
     doc = Document(
         client_id=client.id,
         filename=file.filename,
-        file_type=allowed_types[file.content_type],
+        file_type=file_type,
         file_size=file_size,
         status=DocumentStatus.PENDING  # Start as PENDING, will update to PROCESSING -> COMPLETED
     )
@@ -843,7 +871,7 @@ async def upload_document(
         client_id=client.id,
         doc_id=doc.id,
         content=contents,
-        file_type=allowed_types[file.content_type],
+        file_type=file_type,
         filename=file.filename
     )
     
@@ -930,3 +958,136 @@ async def get_usage(
         total_rag_queries=total_rag,
         daily_usage=daily
     )
+
+
+# ============== FAQ Management ==============
+
+@app.post("/api/faqs", response_model=FAQResponse)
+async def create_faq(
+    faq_data: FAQCreate,
+    client: Client = Depends(get_client_from_api_key),
+    db: Session = Depends(get_db)
+):
+    """Create a new FAQ"""
+    faq = FAQ(
+        client_id=client.id,
+        question=faq_data.question,
+        answer=faq_data.answer,
+        category=faq_data.category,
+        priority=faq_data.priority
+    )
+    db.add(faq)
+    db.commit()
+    db.refresh(faq)
+    return faq
+
+
+@app.get("/api/faqs", response_model=FAQList)
+async def list_faqs(
+    category: Optional[str] = None,
+    client: Client = Depends(get_client_from_api_key),
+    db: Session = Depends(get_db)
+):
+    """List all FAQs for this client"""
+    query = db.query(FAQ).filter(FAQ.client_id == client.id)
+    
+    if category:
+        query = query.filter(FAQ.category == category)
+    
+    faqs = query.order_by(FAQ.priority.desc(), FAQ.created_at.desc()).all()
+    
+    return FAQList(faqs=faqs, total=len(faqs))
+
+
+@app.patch("/api/faqs/{faq_id}", response_model=FAQResponse)
+async def update_faq(
+    faq_id: UUID,
+    faq_data: FAQUpdate,
+    client: Client = Depends(get_client_from_api_key),
+    db: Session = Depends(get_db)
+):
+    """Update an existing FAQ"""
+    faq = db.query(FAQ).filter(
+        FAQ.id == faq_id,
+        FAQ.client_id == client.id
+    ).first()
+    
+    if not faq:
+        raise HTTPException(status_code=404, detail="FAQ not found")
+    
+    update_data = faq_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(faq, field, value)
+    
+    db.commit()
+    db.refresh(faq)
+    return faq
+
+
+@app.delete("/api/faqs/{faq_id}")
+async def delete_faq(
+    faq_id: UUID,
+    client: Client = Depends(get_client_from_api_key),
+    db: Session = Depends(get_db)
+):
+    """Delete an FAQ"""
+    faq = db.query(FAQ).filter(
+        FAQ.id == faq_id,
+        FAQ.client_id == client.id
+    ).first()
+    
+    if not faq:
+        raise HTTPException(status_code=404, detail="FAQ not found")
+    
+    db.delete(faq)
+    db.commit()
+    
+    return {"status": "deleted"}
+
+
+# ============== Conversation Logs ==============
+
+@app.get("/api/conversations", response_model=ConversationList)
+async def list_conversations(
+    limit: int = 50,
+    offset: int = 0,
+    client: Client = Depends(get_client_from_api_key),
+    db: Session = Depends(get_db)
+):
+    """List conversations for this client"""
+    conversations = db.query(Conversation).filter(
+        Conversation.client_id == client.id
+    ).order_by(Conversation.last_message_at.desc()).offset(offset).limit(limit).all()
+    
+    total = db.query(Conversation).filter(Conversation.client_id == client.id).count()
+    
+    # Load messages for each conversation
+    for conv in conversations:
+        conv.messages = db.query(ConversationMessage).filter(
+            ConversationMessage.conversation_id == conv.id
+        ).order_by(ConversationMessage.created_at).all()
+    
+    return ConversationList(conversations=conversations, total=total)
+
+
+@app.get("/api/conversations/{conversation_id}", response_model=ConversationResponse)
+async def get_conversation(
+    conversation_id: UUID,
+    client: Client = Depends(get_client_from_api_key),
+    db: Session = Depends(get_db)
+):
+    """Get a specific conversation with all messages"""
+    conversation = db.query(Conversation).filter(
+        Conversation.id == conversation_id,
+        Conversation.client_id == client.id
+    ).first()
+    
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    # Load messages
+    conversation.messages = db.query(ConversationMessage).filter(
+        ConversationMessage.conversation_id == conversation.id
+    ).order_by(ConversationMessage.created_at).all()
+    
+    return conversation

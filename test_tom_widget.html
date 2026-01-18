@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tom's Widget Test - Live</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        h1 { color: #333; }
+        .test-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-left: 4px solid #2196F3;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h1>Tom's Widget Test - Live System</h1>
+        <div class="test-info">
+            <strong>⚠️ IMPORTANT:</strong> Voice will only work when deployed to a real website with HTTPS.
+            <br><br>
+            <strong>Test Status:</strong> This page tests the widget embed code for Dom and Tom
+            <br>
+            <strong>Client ID:</strong> 9167ca71-547d-441e-9a4b-a13e3be07358
+        </div>
+    </div>
+
+    <div class="info">
+        <h2>Instructions:</h2>
+        <ol>
+            <li>Look for the chat widget button in the bottom-right corner</li>
+            <li>Click it to open the chat</li>
+            <li>Send a test message</li>
+            <li>Listen for the voice response (if deployed on HTTPS site)</li>
+        </ol>
+    </div>
+
+    <!-- Widget Embed Code -->
+    <script 
+        src="https://widget-sigma-sage.vercel.app/widget.js" 
+        data-client-id="9167ca71-547d-441e-9a4b-a13e3be07358"
+        data-api-url="https://snip-production.up.railway.app"
+        async>
+    </script>
+
+    <script>
+        // Log when widget loads
+        window.addEventListener('load', () => {
+            console.log('[Test] Page loaded, widget should appear in bottom-right');
+            
+            // Check if widget loaded
+            setTimeout(() => {
+                const widget = document.querySelector('.snip-widget-container');
+                if (widget) {
+                    console.log('[Test] ✅ Widget found on page');
+                } else {
+                    console.warn('[Test] ⚠️ Widget not found - may need to wait for async load');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

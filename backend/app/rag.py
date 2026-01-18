@@ -54,57 +54,189 @@ def extract_text_from_txt(content: bytes) -> str:
     return content.decode('utf-8', errors='ignore')
 
 
+def extract_text_from_markdown(content: bytes) -> str:
+    """Extract text from Markdown file"""
+    text = content.decode('utf-8', errors='ignore')
+    # Remove markdown syntax while preserving text
+    import re
+    # Remove headers
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    # Remove bold/italic markers
+    text = re.sub(r'\*\*|\*|__|_', '', text)
+    # Remove links but keep text
+    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+    # Remove code blocks but keep content
+    text = re.sub(r'```[^`]*```', '', text, flags=re.DOTALL)
+    text = re.sub(r'`([^`]+)`', r'\1', text)
+    # Remove images
+    text = re.sub(r'!\[[^\]]*\]\([^\)]+\)', '', text)
+    return text
+
+
+def extract_text_from_html(content: bytes) -> str:
+    """Extract text from HTML file"""
+    try:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        # Remove script and style elements
+        for script in soup(["script", "style"]):
+            script.decompose()
+        # Get text and clean up whitespace
+        text = soup.get_text()
+        lines = (line.strip() for line in text.splitlines())
+        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+        text = ' '.join(chunk for chunk in chunks if chunk)
+        return text
+    except ImportError:
+        # Fallback to simple regex if BeautifulSoup not available
+        import re
+        text = content.decode('utf-8', errors='ignore')
+        text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
+        text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)
+        text = re.sub(r'<[^>]+>', ' ', text)
+        text = re.sub(r'\s+', ' ', text)
+        return text.strip()
+
+
+def extract_text_from_csv(content: bytes) -> str:
+    """Extract text from CSV file"""
+    try:
+        import csv
+        import io
+        text_lines = []
+        reader = csv.reader(io.StringIO(content.decode('utf-8', errors='ignore')))
+        for row in reader:
+            # Combine row into readable text
+            row_text = ' | '.join(cell.strip() for cell in row if cell.strip())
+            if row_text:
+                text_lines.append(row_text)
+        return '\n'.join(text_lines)
+    except Exception:
+        # Fallback to simple split
+        text = content.decode('utf-8', errors='ignore')
+        return text.replace(',', ' | ').replace('\n', ' ')
+
+
+def extract_text_from_excel(content: bytes) -> str:
+    """Extract text from Excel file (XLSX/XLS)"""
+    try:
+        import pandas as pd
+        import io
+        # Try reading as Excel
+        df = pd.read_excel(io.BytesIO(content))
+        # Convert to text representation
+        text_lines = []
+        for idx, row in df.iterrows():
+            row_text = ' | '.join(str(val) for val in row.values if pd.notna(val) and str(val).strip())
+            if row_text:
+                text_lines.append(f"Row {idx + 1}: {row_text}")
+        return '\n'.join(text_lines)
+    except ImportError:
+        raise ValueError("pandas and openpyxl required for Excel support. Install with: pip install pandas openpyxl")
+    except Exception as e:
+        raise ValueError(f"Failed to extract text from Excel: {e}")
+
+
 def extract_text(content: bytes, file_type: str) -> str:
-    """Extract text from file based on type"""
+    """Extract text from file based on type - supports multiple formats"""
     extractors = {
         'pdf': extract_text_from_pdf,
         'docx': extract_text_from_docx,
-        'txt': extract_text_from_txt
+        'txt': extract_text_from_txt,
+        'md': extract_text_from_markdown,
+        'markdown': extract_text_from_markdown,
+        'html': extract_text_from_html,
+        'htm': extract_text_from_html,
+        'csv': extract_text_from_csv,
+        'xlsx': extract_text_from_excel,
+        'xls': extract_text_from_excel,
     }
     
-    extractor = extractors.get(file_type)
+    extractor = extractors.get(file_type.lower())
     if not extractor:
-        raise ValueError(f"Unsupported file type: {file_type}")
+        raise ValueError(
+            f"Unsupported file type: {file_type}. "
+            f"Supported: PDF, DOCX, TXT, MD, HTML, CSV, XLSX, XLS"
+        )
     
     return extractor(content)
 
 
-def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
+def chunk_text(text: str, chunk_size: int = 1500, overlap: int = 200) -> List[str]:
     """
-    Split text into overlapping chunks
-    Uses sentence boundaries when possible
+    Enhanced semantic chunking with paragraph and section awareness
+    Uses larger chunks (1500 chars) with smart overlap (200 chars)
+    Respects document structure better than simple sentence splitting
     """
-    # Split by sentences (roughly)
-    sentences = text.replace('\n', ' ').split('. ')
+    # First, try to split by paragraphs (double newlines or section markers)
+    paragraphs = []
+    for para in text.split('\n\n'):
+        para = para.strip().replace('\n', ' ')
+        if para:
+            paragraphs.append(para)
+    
+    # If no paragraph breaks, split by single newlines
+    if len(paragraphs) == 1:
+        paragraphs = [p.strip() for p in text.split('\n') if p.strip()]
+    
+    # If still single paragraph, fall back to sentence splitting
+    if len(paragraphs) == 1:
+        sentences = text.replace('\n', ' ').split('. ')
+        paragraphs = [s.strip() + '.' for s in sentences if s.strip()]
     
     chunks = []
     current_chunk = ""
     
-    for sentence in sentences:
-        sentence = sentence.strip()
-        if not sentence:
+    for para in paragraphs:
+        para = para.strip()
+        if not para:
             continue
-            
-        # Add sentence to current chunk
-        if len(current_chunk) + len(sentence) < chunk_size:
-            current_chunk += sentence + ". "
+        
+        # If paragraph fits, add it
+        if len(current_chunk) + len(para) + 1 < chunk_size:
+            current_chunk += para + " " if current_chunk else para
         else:
-            # Save current chunk and start new one
+            # Save current chunk if it has content
             if current_chunk:
                 chunks.append(current_chunk.strip())
             
-            # Start new chunk with overlap from previous
-            if chunks and overlap > 0:
-                # Get last N characters from previous chunk
-                last_chunk = chunks[-1]
-                overlap_text = last_chunk[-overlap:] if len(last_chunk) > overlap else last_chunk
-                current_chunk = overlap_text + " " + sentence + ". "
+            # Handle paragraphs larger than chunk_size
+            if len(para) > chunk_size:
+                # Split large paragraph by sentences
+                para_sentences = para.split('. ')
+                temp_chunk = ""
+                
+                for sent in para_sentences:
+                    sent = sent.strip()
+                    if not sent:
+                        continue
+                    sent = sent + '.' if not sent.endswith('.') else sent
+                    
+                    if len(temp_chunk) + len(sent) < chunk_size:
+                        temp_chunk += sent + " " if temp_chunk else sent
+                    else:
+                        if temp_chunk:
+                            chunks.append(temp_chunk.strip())
+                        temp_chunk = sent
+                
+                # Add remaining sentences
+                if temp_chunk:
+                    current_chunk = temp_chunk
             else:
-                current_chunk = sentence + ". "
+                # Start new chunk with overlap from previous
+                if chunks and overlap > 0:
+                    last_chunk = chunks[-1]
+                    overlap_text = last_chunk[-overlap:] if len(last_chunk) > overlap else last_chunk
+                    current_chunk = overlap_text + " " + para if overlap_text else para
+                else:
+                    current_chunk = para
     
     # Add final chunk
     if current_chunk.strip():
         chunks.append(current_chunk.strip())
+    
+    # Filter out very small chunks (likely artifacts)
+    chunks = [c for c in chunks if len(c) > 50]
     
     return chunks
 
@@ -180,11 +312,12 @@ async def process_document(
 async def retrieve_context(
     client_id: UUID,
     query: str,
-    n_results: int = 3
+    n_results: int = 5  # Increased from 3 to 5 for better context
 ) -> Optional[str]:
     """
-    Retrieve relevant context for a query
+    Retrieve relevant context for a query with enhanced retrieval
     Returns concatenated relevant chunks or None if no collection exists
+    Uses larger n_results for better context coverage
     """
     collection_name = get_collection_name(client_id)
     
@@ -193,7 +326,7 @@ async def retrieve_context(
     except:
         return None
     
-    # Query the collection
+    # Query the collection with more results for better context
     results = collection.query(
         query_texts=[query],
         n_results=n_results
@@ -202,14 +335,20 @@ async def retrieve_context(
     if not results['documents'] or not results['documents'][0]:
         return None
     
-    # Combine relevant chunks
+    # Combine relevant chunks with better formatting
     chunks = results['documents'][0]
     metadatas = results['metadatas'][0] if results['metadatas'] else []
+    distances = results.get('distances', [[]])[0] if results.get('distances') else []
     
     context_parts = []
     for i, chunk in enumerate(chunks):
-        source = metadatas[i].get('filename', 'Unknown') if metadatas else 'Unknown'
-        context_parts.append(f"[Source: {source}]\n{chunk}")
+        source = metadatas[i].get('filename', 'Unknown') if i < len(metadatas) and metadatas[i] else 'Unknown'
+        # Only include chunks with reasonable relevance (distance < 1.5 for cosine)
+        if not distances or (i < len(distances) and distances[i] < 1.5):
+            context_parts.append(f"[From: {source}]\n{chunk}")
+    
+    if not context_parts:
+        return None
     
     return "\n\n---\n\n".join(context_parts)
 

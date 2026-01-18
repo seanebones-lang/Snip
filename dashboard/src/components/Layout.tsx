@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Palette, Code, FileText, BarChart3, LogOut } from 'lucide-react'
+import { Home, Palette, Code, FileText, BarChart3, LogOut, MessageSquare, HelpCircle, MessageCircle } from 'lucide-react'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -25,6 +25,18 @@ function Layout({ children, onLogout }: LayoutProps) {
           <NavLink to="/snippet" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             <Code size={20} />
             Embed Snippet
+          </NavLink>
+          <NavLink to="/test" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+            <MessageSquare size={20} />
+            Test Chat
+          </NavLink>
+          <NavLink to="/conversations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+            <MessageCircle size={20} />
+            Conversations
+          </NavLink>
+          <NavLink to="/faqs" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+            <HelpCircle size={20} />
+            FAQs
           </NavLink>
           <NavLink to="/documents" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             <FileText size={20} />

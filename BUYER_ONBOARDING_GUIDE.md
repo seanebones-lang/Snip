@@ -941,10 +941,11 @@ curl -X POST https://snip-production.up.railway.app/api/documents \
 
 **Processing Time:**
 - Small documents (< 1MB): Usually processed in minutes
-- Large documents (> 10MB): May take 10-30 minutes
+- Medium documents (1-50MB): 5-15 minutes
+- Large documents (50-500MB): 15-60 minutes (processed asynchronously)
 
 **Document Limits:**
-- **File Size**: Maximum 50MB per file
+- **File Size**: Maximum 500MB per file (enterprise-grade support)
 - **Total Documents**: Depends on your plan
 - **Supported Languages**: Primarily English (others may work)
 

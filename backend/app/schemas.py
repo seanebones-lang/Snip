@@ -63,6 +63,7 @@ class ConfigUpdate(BaseModel):
     ai_provider: Optional[str] = Field(None, description="AI provider: 'xai', 'openai', 'anthropic'")
     ai_api_key: Optional[str] = Field(None, description="Your AI API key (bring your own key)")
     ai_model: Optional[str] = Field(None, description="AI model to use (e.g., 'grok-3-fast', 'gpt-4', 'claude-3')")
+    tts_voice: Optional[str] = Field(None, description="TTS voice for xAI: 'Ara', 'Leo', 'Rex', 'Sal', 'Eve' (default: 'Ara')")
 
 
 class ConfigResponse(BaseModel):
@@ -83,6 +84,7 @@ class ConfigResponse(BaseModel):
     ai_provider: Optional[str] = Field(None, description="AI provider selected")
     ai_model: Optional[str] = Field(None, description="AI model selected")
     ai_api_key_set: bool = Field(default=False, description="Whether AI API key is configured (never returns actual key)")
+    tts_voice: Optional[str] = Field(None, description="TTS voice selected (only applies to xAI provider)")
     
     class Config:
         from_attributes = True
@@ -178,3 +180,72 @@ class EmbedSnippet(BaseModel):
     html: str
     script_url: str
     client_id: str
+
+
+# ============== FAQ Schemas ==============
+
+class FAQCreate(BaseModel):
+    """Create a new FAQ"""
+    question: str = Field(..., min_length=1, max_length=1000)
+    answer: str = Field(..., min_length=1, max_length=5000)
+    category: Optional[str] = Field(None, max_length=100)
+    priority: int = Field(default=0, ge=0)
+
+
+class FAQUpdate(BaseModel):
+    """Update an existing FAQ"""
+    question: Optional[str] = Field(None, min_length=1, max_length=1000)
+    answer: Optional[str] = Field(None, min_length=1, max_length=5000)
+    category: Optional[str] = Field(None, max_length=100)
+    priority: Optional[int] = Field(None, ge=0)
+
+
+class FAQResponse(BaseModel):
+    """FAQ response"""
+    id: UUID
+    question: str
+    answer: str
+    category: Optional[str]
+    priority: int
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class FAQList(BaseModel):
+    """List of FAQs"""
+    faqs: List[FAQResponse]
+    total: int
+
+
+# ============== Conversation Schemas ==============
+
+class MessageResponse(BaseModel):
+    """Individual message in conversation"""
+    id: UUID
+    role: str
+    content: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ConversationResponse(BaseModel):
+    """Conversation response"""
+    id: UUID
+    started_at: datetime
+    last_message_at: datetime
+    message_count: int
+    messages: List[MessageResponse]
+    
+    class Config:
+        from_attributes = True
+
+
+class ConversationList(BaseModel):
+    """List of conversations"""
+    conversations: List[ConversationResponse]
+    total: int

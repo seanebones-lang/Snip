@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Voice Test - Live System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: white;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            color: #333;
+        }
+        h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        .test-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .test-info h2 {
+            color: #1976d2;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .test-info ul {
+            margin-left: 20px;
+            color: #555;
+        }
+        .test-info li {
+            margin: 8px 0;
+        }
+        .status {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .status.warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        .status.success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        .code-block {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .code-block code {
+            color: #e83e8c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Widget Voice Test - Live System</h1>
+        <p class="subtitle">Testing chatbot widget with voice/TTS on a deployed HTTPS site</p>
+
+        <div class="test-info">
+            <h2>Test Instructions:</h2>
+            <ul>
+                <li><strong>1.</strong> Look for the chat widget button in the <strong>bottom-right corner</strong></li>
+                <li><strong>2.</strong> Click the widget to open the chat interface</li>
+                <li><strong>3.</strong> Send a test message: "Hello, can you hear me?"</li>
+                <li><strong>4.</strong> <strong>Listen</strong> - The bot should respond with voice (if API key is configured)</li>
+                <li><strong>5.</strong> Check the browser console (F12) for TTS logs</li>
+            </ul>
+        </div>
+
+        <div class="status warning">
+            <strong>⚠️ IMPORTANT:</strong> Voice only works when:
+            <ul style="margin-top: 10px; margin-left: 20px;">
+                <li>Widget is deployed on an HTTPS website (not localhost/file://)</li>
+                <li>Client has an X.AI API key configured in dashboard</li>
+                <li>Browser allows audio playback</li>
+            </ul>
+        </div>
+
+        <div class="test-info">
+            <h2>Test Client Details:</h2>
+            <div class="code-block">
+                <strong>Client ID:</strong> <code>5491c6c8-a701-432d-a9fa-6017bf83922f</code><br>
+                <strong>Company:</strong> Widget Voice Test<br>
+                <strong>Tier:</strong> Premium<br>
+                <strong>Widget CDN:</strong> widget-sigma-sage.vercel.app<br>
+                <strong>API URL:</strong> snip-production.up.railway.app
+            </div>
+        </div>
+
+        <div class="status" id="widgetStatus">
+            <strong>Widget Status:</strong> Loading...
+        </div>
+    </div>
+
+    <!-- Widget Embed Code -->
+    <script 
+        src="https://widget-sigma-sage.vercel.app/widget.js" 
+        data-client-id="5491c6c8-a701-432d-a9fa-6017bf83922f"
+        data-api-url="https://snip-production.up.railway.app"
+        async>
+    </script>
+
+    <script>
+        // Monitor widget loading
+        let widgetCheckCount = 0;
+        const maxChecks = 10;
+        
+        function checkWidget() {
+            widgetCheckCount++;
+            const widget = document.querySelector('.snip-widget-container');
+            const statusEl = document.getElementById('widgetStatus');
+            
+            if (widget) {
+                statusEl.className = 'status success';
+                statusEl.innerHTML = '<strong>✅ Widget Loaded Successfully!</strong><br>The chat widget should be visible in the bottom-right corner.';
+                console.log('[Test] ✅ Widget found on page');
+                console.log('[Test] Widget container:', widget);
+                return true;
+            } else if (widgetCheckCount < maxChecks) {
+                setTimeout(checkWidget, 500);
+                return false;
+            } else {
+                statusEl.className = 'status warning';
+                statusEl.innerHTML = '<strong>⚠️ Widget Not Found</strong><br>Widget may still be loading. Check browser console (F12) for errors.';
+                console.warn('[Test] ⚠️ Widget not found after', maxChecks, 'checks');
+                return false;
+            }
+        }
+        
+        // Start checking when page loads
+        window.addEventListener('load', () => {
+            console.log('[Test] Page loaded, checking for widget...');
+            setTimeout(checkWidget, 1000);
+        });
+        
+        // Monitor TTS events
+        const originalAudio = window.Audio;
+        window.Audio = function(...args) {
+            console.log('[Test] 🎵 Audio element created for TTS:', args[0] ? 'data URL detected' : 'no URL');
+            const audio = new originalAudio(...args);
+            audio.addEventListener('play', () => {
+                console.log('[Test] 🔊 Audio playback started!');
+                const statusEl = document.getElementById('widgetStatus');
+                if (statusEl.className.includes('success')) {
+                    statusEl.innerHTML += '<br><strong>🔊 Voice playing!</strong>';
+                }
+            });
+            audio.addEventListener('error', (e) => {
+                console.error('[Test] ❌ Audio playback error:', e);
+            });
+            return audio;
+        };
+        
+        // Monitor speech synthesis (fallback)
+        if ('speechSynthesis' in window) {
+            const originalSpeak = window.speechSynthesis.speak;
+            window.speechSynthesis.speak = function(utterance) {
+                console.log('[Test] 🗣️ Browser TTS fallback triggered:', utterance.text);
+                const statusEl = document.getElementById('widgetStatus');
+                if (statusEl.className.includes('success')) {
+                    statusEl.innerHTML += '<br><strong>🗣️ Using browser TTS fallback</strong>';
+                }
+                return originalSpeak.call(this, utterance);
+            };
+        }
+    </script>
+</body>
+</html>

@@ -175,7 +175,7 @@ function Documents({ apiKey }: DocumentsProps) {
               type="file"
               ref={fileInputRef}
               onChange={handleUpload}
-              accept=".pdf,.docx,.txt"
+              accept=".pdf,.docx,.doc,.txt,.md,.markdown,.html,.htm,.csv,.xlsx,.xls"
               style={{ display: 'none' }}
               disabled={!isPremium}
             />
@@ -191,7 +191,7 @@ function Documents({ apiKey }: DocumentsProps) {
         </div>
         
         <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
-          Supported formats: PDF, DOCX, TXT (max 10MB)
+          Supported formats: PDF, DOCX, TXT, MD, HTML, CSV, XLSX, XLS (max 500MB per file)
         </p>
         
         {documents.length === 0 ? (

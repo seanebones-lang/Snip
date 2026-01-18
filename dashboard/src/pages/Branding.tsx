@@ -22,6 +22,7 @@ interface Config {
   ai_provider?: string | null
   ai_model?: string | null
   ai_api_key_set: boolean
+  tts_voice?: string | null
 }
 
 function Branding({ apiKey }: BrandingProps) {
@@ -30,10 +31,7 @@ function Branding({ apiKey }: BrandingProps) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [aiProvider, setAiProvider] = useState('xai')
-  const [aiModel, setAiModel] = useState('')
-  const [aiApiKey, setAiApiKey] = useState('')
-  const [showAiKey, setShowAiKey] = useState(false)
+  const [ttsVoice, setTtsVoice] = useState('Ara')
   
   useEffect(() => {
     const fetchConfig = async () => {
@@ -45,8 +43,8 @@ function Branding({ apiKey }: BrandingProps) {
           const data = await res.json()
           setConfig(data)
           // Initialize form fields from config
-          if (data.ai_provider) setAiProvider(data.ai_provider)
-          if (data.ai_model) setAiModel(data.ai_model)
+          if (data.tts_voice) setTtsVoice(data.tts_voice)
+          else setTtsVoice('Ara') // Default voice
           setError(null)
         } else {
           const errorData = await res.json().catch(() => ({}))
@@ -329,142 +327,64 @@ function Branding({ apiKey }: BrandingProps) {
           </div>
 
           <div className="card">
-            <h2 className="card-title">AI Provider & API Key</h2>
+            <h2 className="card-title">Voice Settings</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
-              Use any AI provider you want! Bring your own API key to control your own costs and usage.
+              Choose the voice for your chatbot responses. The voice speaks all responses automatically.
             </p>
             
             <div className="form-group" style={{ marginBottom: 20 }}>
-              <label className="form-label">AI Provider</label>
+              <label className="form-label">Voice for Text-to-Speech</label>
               <select
                 className="form-input"
-                value={aiProvider}
-                onChange={(e) => {
-                  setAiProvider(e.target.value)
-                  // Set default model based on provider
-                  const defaultModels: Record<string, string> = {
-                    'xai': 'grok-3-fast',
-                    'openai': 'gpt-4',
-                    'anthropic': 'claude-3-opus-20240229'
-                  }
-                  setAiModel(defaultModels[e.target.value] || '')
-                }}
+                value={ttsVoice}
+                onChange={(e) => setTtsVoice(e.target.value)}
               >
-                <option value="xai">xAI (Grok)</option>
-                <option value="openai">OpenAI (GPT-4)</option>
-                <option value="anthropic">Anthropic (Claude)</option>
+                <option value="Ara">Ara (Female, Natural)</option>
+                <option value="Leo">Leo (Male, Natural)</option>
+                <option value="Rex">Rex (Male, Deep)</option>
+                <option value="Sal">Sal (Male, Friendly)</option>
+                <option value="Eve">Eve (Female, Clear)</option>
               </select>
               <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>
-                Choose which AI provider to use for your chatbot responses.
-              </p>
-            </div>
-
-            <div className="form-group" style={{ marginBottom: 20 }}>
-              <label className="form-label">AI Model</label>
-              <input
-                type="text"
-                className="form-input"
-                value={aiModel}
-                onChange={(e) => setAiModel(e.target.value)}
-                placeholder={aiProvider === 'xai' ? 'grok-3-fast' : aiProvider === 'openai' ? 'gpt-4' : 'claude-3-opus-20240229'}
-              />
-              <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>
-                Specify the model to use. Leave empty to use the provider's default.
+                Select the voice that will speak all chatbot responses. Default: Ara
               </p>
             </div>
             
-            <div className="form-group">
-              <label className="form-label">API Key</label>
-              <div style={{ marginBottom: 8 }}>
-                {config.ai_api_key_set && (
-                  <div className="alert alert-success" style={{ marginBottom: 12, padding: '12px 16px' }}>
-                    ✓ API key is configured for {config.ai_provider || 'xai'}
-                  </div>
-                )}
-              </div>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showAiKey ? "text" : "password"}
-                  className="form-input"
-                  value={aiApiKey}
-                  onChange={(e) => setAiApiKey(e.target.value)}
-                  placeholder={config.ai_api_key_set ? "Enter new key to update..." : 
-                    aiProvider === 'xai' ? "xai-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" :
-                    aiProvider === 'openai' ? "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" :
-                    "sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}
-                  style={{ paddingRight: 100 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowAiKey(!showAiKey)}
-                  style={{
-                    position: 'absolute',
-                    right: 8,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    padding: '4px 8px'
-                  }}
-                >
-                  {showAiKey ? 'Hide' : 'Show'}
-                </button>
-              </div>
-              <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>
-                {aiProvider === 'xai' && (
-                  <>Get your xAI API key from <a href="https://console.x.ai" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>console.x.ai</a>.</>
-                )}
-                {aiProvider === 'openai' && (
-                  <>Get your OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>platform.openai.com</a>.</>
-                )}
-                {aiProvider === 'anthropic' && (
-                  <>Get your Anthropic API key from <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>console.anthropic.com</a>.</>
-                )}
-                {' '}This key is stored securely and only used for your chatbot requests.
-              </p>
-              {(aiApiKey || aiModel) && (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={async () => {
-                    try {
-                      const updateData: any = {}
-                      if (aiApiKey) updateData.ai_api_key = aiApiKey
-                      if (aiProvider) updateData.ai_provider = aiProvider
-                      if (aiModel) updateData.ai_model = aiModel
-                      
-                      const res = await fetch('/api/config', {
-                        method: 'PATCH',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'X-API-Key': apiKey
-                        },
-                        body: JSON.stringify(updateData)
-                      })
-                      if (res.ok) {
-                        const updated = await res.json()
-                        setConfig(updated)
-                        if (aiApiKey) setAiApiKey('')
-                        setSaved(true)
-                        setTimeout(() => setSaved(false), 3000)
-                      } else {
-                        const errorData = await res.json().catch(() => ({}))
-                        setError(errorData.detail || 'Failed to save API configuration')
-                      }
-                    } catch (error) {
-                      console.error('Failed to save API config:', error)
-                      setError('Network error. Please try again.')
+            {(ttsVoice && ttsVoice !== (config?.tts_voice || 'Ara')) && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={async () => {
+                  try {
+                    const updateData: any = { tts_voice: ttsVoice }
+                    
+                    const res = await fetch('/api/config', {
+                      method: 'PATCH',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey
+                      },
+                      body: JSON.stringify(updateData)
+                    })
+                    if (res.ok) {
+                      const updated = await res.json()
+                      setConfig(updated)
+                      setSaved(true)
+                      setTimeout(() => setSaved(false), 3000)
+                    } else {
+                      const errorData = await res.json().catch(() => ({}))
+                      setError(errorData.detail || 'Failed to save voice settings')
                     }
-                  }}
-                  style={{ marginTop: 8 }}
-                >
-                  Save AI Configuration
-                </button>
-              )}
-            </div>
+                  } catch (error) {
+                    console.error('Failed to save voice config:', error)
+                    setError('Network error. Please try again.')
+                  }
+                }}
+                style={{ marginTop: 8 }}
+              >
+                Save Voice Settings
+              </button>
+            )}
           </div>
           
           <div className="card">
