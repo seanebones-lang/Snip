@@ -33,20 +33,29 @@ def get_collection_name(client_id: UUID) -> str:
 
 
 def extract_text_from_pdf(content: bytes) -> str:
-    """Extract text from PDF file"""
-    import io
-    reader = PdfReader(io.BytesIO(content))
-    text = ""
-    for page in reader.pages:
-        text += page.extract_text() + "\n"
-    return text
+    """Extract text from PDF file with error handling"""
+    try:
+        import io
+        reader = PdfReader(io.BytesIO(content))
+        text = ""
+        for page in reader.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+        return text.strip() or ""
+    except Exception as e:
+        raise ValueError(f"Failed to extract text from PDF: {e}")
 
 
 def extract_text_from_docx(content: bytes) -> str:
-    """Extract text from DOCX file"""
-    import io
-    doc = DocxDocument(io.BytesIO(content))
-    return "\n".join([para.text for para in doc.paragraphs])
+    """Extract text from DOCX file with error handling"""
+    try:
+        import io
+        doc = DocxDocument(io.BytesIO(content))
+        paragraphs = [para.text for para in doc.paragraphs if para.text.strip()]
+        return "\n".join(paragraphs) or ""
+    except Exception as e:
+        raise ValueError(f"Failed to extract text from DOCX: {e}")
 
 
 def extract_text_from_txt(content: bytes) -> str:
