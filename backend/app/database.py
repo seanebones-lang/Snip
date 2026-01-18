@@ -51,4 +51,23 @@ def init_db():
         # Log error but don't crash - migration might already be done or table might not exist yet
         print(f"Migration check (non-fatal): {e}")
         pass
+    
+    # Run migration: Add customization columns if they don't exist
+    try:
+        with engine.begin() as conn:
+            # Use IF NOT EXISTS to safely add columns (PostgreSQL 9.5+)
+            customization_migration = text("""
+                ALTER TABLE client_configs
+                ADD COLUMN IF NOT EXISTS widget_width INTEGER NULL,
+                ADD COLUMN IF NOT EXISTS widget_height INTEGER NULL,
+                ADD COLUMN IF NOT EXISTS custom_css TEXT NULL,
+                ADD COLUMN IF NOT EXISTS theme VARCHAR(50) NULL;
+            """)
+            conn.execute(customization_migration)
+            print("✅ Migration check: Customization columns verified/added")
+    except Exception as e:
+        # Log error but don't crash - migration might already be done or table might not exist yet
+        print(f"Customization migration check (non-fatal): {e}")
+        pass
+
 # Auto-migration enabled
