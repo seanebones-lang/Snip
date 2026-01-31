@@ -37,7 +37,7 @@ function Login({ onLogin }: LoginProps) {
   return (
     <div className="login-container">
       <div className="login-card">
-        <h1 className="login-logo">Snip</h1>
+        <h1 className="login-logo">Snip by NextEleven</h1>
         <p className="login-subtitle">Enter your API key to access the dashboard</p>
         
         {error && (
@@ -53,7 +53,7 @@ function Login({ onLogin }: LoginProps) {
               <input
                 type="password"
                 className="form-input"
-                placeholder="snip_xxxxxxxxxxxx"
+                placeholder="ne11_xxxxxxxxxxxx"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 style={{ paddingLeft: 44 }}
@@ -83,7 +83,7 @@ function Login({ onLogin }: LoginProps) {
         </form>
         
         <p style={{ marginTop: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
-          Don't have an account? Contact us to get started.
+          New here? You've been sent an API key via email. Check spam if missing. Questions? <a href="mailto:support@mothership-ai.com">support@mothership-ai.com</a>.
         </p>
       </div>
     </div>

@@ -18,7 +18,7 @@ interface Document {
 }
 
 interface ClientInfo {
-  tier: 'basic' | 'premium'
+  tier: 'basic' | 'standard' | 'enterprise'
 }
 
 function Documents({ apiKey }: DocumentsProps) {
@@ -141,7 +141,7 @@ function Documents({ apiKey }: DocumentsProps) {
     return <div>Loading...</div>
   }
   
-  const isPremium = client?.tier === 'premium'
+  const isStandardOrHigher = client?.tier !== 'basic'
   
   return (
     <div>
@@ -154,7 +154,7 @@ function Documents({ apiKey }: DocumentsProps) {
         </p>
       </div>
       
-      {!isPremium && (
+      {!isStandardOrHigher && (
         <div className="alert alert-warning">
           <span>⚡</span>
           <div>
@@ -177,12 +177,12 @@ function Documents({ apiKey }: DocumentsProps) {
               onChange={handleUpload}
               accept=".pdf,.docx,.doc,.txt,.md,.markdown,.html,.htm,.csv,.xlsx,.xls"
               style={{ display: 'none' }}
-              disabled={!isPremium}
+              disabled={!isStandardOrHigher}
             />
             <button 
               className="btn btn-primary"
               onClick={() => fileInputRef.current?.click()}
-              disabled={!isPremium || uploading}
+              disabled={!isStandardOrHigher || uploading}
             >
               <Upload size={18} />
               {uploading ? 'Uploading...' : 'Upload Document'}
@@ -203,7 +203,7 @@ function Documents({ apiKey }: DocumentsProps) {
           }}>
             <FileText size={48} color="var(--text-muted)" style={{ marginBottom: 16 }} />
             <p style={{ color: 'var(--text-muted)' }}>
-              {isPremium 
+              {isStandardOrHigher 
                 ? "No documents uploaded yet. Upload your first document to get started."
                 : "Upgrade to Premium to upload documents."
               }

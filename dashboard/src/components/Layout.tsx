@@ -11,7 +11,7 @@ function Layout({ children, onLogout }: LayoutProps) {
   return (
     <div className="dashboard-layout">
       <aside className="sidebar">
-        <div className="logo">Snip</div>
+        <div className="logo">Snip by NextEleven</div>
         
         <nav className="nav">
           <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>

@@ -9,7 +9,7 @@ interface ClientInfo {
   id: string
   email: string
   company_name: string
-  tier: 'basic' | 'premium'
+  tier: 'basic' | 'standard' | 'enterprise'
   is_active: boolean
   created_at: string
 }
@@ -170,9 +170,14 @@ function Dashboard({ apiKey }: DashboardProps) {
             Get Embed Code
           </a>
           {client?.tier === 'basic' && (
-            <button className="btn btn-secondary" style={{ background: 'rgba(236, 72, 153, 0.2)', borderColor: '#ec4899', color: '#ec4899' }}>
-              Upgrade to Premium
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary" style={{ background: 'rgba(236, 72, 153, 0.2)', borderColor: '#ec4899', color: '#ec4899' }}>
+                Upgrade to Standard ($40/mo)
+              </button>
+              <button className="btn btn-secondary" style={{ background: 'rgba(34, 197, 94, 0.2)', borderColor: 'var(--success)', color: 'var(--success)' }}>
+                Enterprise ($60/mo)
+              </button>
+            </div>
           )}
         </div>
       </div>

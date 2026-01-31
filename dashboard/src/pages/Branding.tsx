@@ -424,7 +424,7 @@ function Branding({ apiKey }: BrandingProps) {
             </div>
             
             <div className="form-group">
-              <label className="form-label">Show "Powered by Snip" Branding</label>
+              <label className="form-label">Show "Powered by Snip by NextEleven" Branding</label>
               <select
                 className="form-input"
                 value={config.show_branding ? 'yes' : 'no'}
