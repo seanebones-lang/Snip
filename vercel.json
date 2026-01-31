@@ -1,6 +1,10 @@
 {
-  "buildCommand": "pnpm build",
-  "outputDirectory": "dashboard/dist",
-  "installCommand": "cd dashboard && pnpm install",
-  "framework": "vite"
+  "npm": {
+    "scripts": {
+      "build": "cd dashboard && npm run build"
+    }
+  },
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dashboard/dist"
 }
