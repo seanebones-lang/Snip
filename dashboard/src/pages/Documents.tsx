@@ -233,15 +233,22 @@ function Documents({ apiKey }: DocumentsProps) {
                   </div>
                 </div>
                 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {getStatusIcon(doc.status)}
-                  <span style={{ 
-                    fontSize: 12, 
-                    textTransform: 'capitalize',
-                    color: 'var(--text-muted)'
-                  }}>
-                    {doc.status}
-                  </span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {getStatusIcon(doc.status)}
+                    <span style={{ 
+                      fontSize: 12, 
+                      textTransform: 'capitalize',
+                      color: 'var(--text-muted)'
+                    }}>
+                      {doc.status}
+                    </span>
+                  </div>
+                  {doc.status === 'failed' && doc.error_message && (
+                    <span style={{ fontSize: 11, color: 'var(--danger)', maxWidth: 280, textAlign: 'right' }} title={doc.error_message}>
+                      {doc.error_message.length > 60 ? doc.error_message.slice(0, 60) + '…' : doc.error_message}
+                    </span>
+                  )}
                 </div>
                 
                 <button

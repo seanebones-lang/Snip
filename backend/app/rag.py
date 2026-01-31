@@ -13,18 +13,13 @@ from docx import Document as DocxDocument
 
 # Embeddings and vector store
 import chromadb
-from chromadb.config import Settings as ChromaSettings
 
 from .config import get_settings
 
 settings = get_settings()
 
-# Initialize ChromaDB
-chroma_client = chromadb.Client(ChromaSettings(
-    chroma_db_impl="duckdb+parquet",
-    persist_directory=settings.chroma_persist_directory,
-    anonymized_telemetry=False
-))
+# Initialize ChromaDB (PersistentClient for 0.4+; old Settings/chroma_db_impl is deprecated)
+chroma_client = chromadb.PersistentClient(path=settings.chroma_persist_directory)
 
 
 def get_collection_name(client_id: UUID) -> str:
@@ -313,10 +308,7 @@ async def process_document(
         documents=documents,
         metadatas=metadatas
     )
-    
-    # Persist
-    chroma_client.persist()
-    
+    # PersistentClient auto-persists; no .persist() call needed
     return len(chunks)
 
 
@@ -379,8 +371,6 @@ async def delete_document_embeddings(client_id: UUID, doc_id: UUID) -> bool:
     collection.delete(
         where={"doc_id": str(doc_id)}
     )
-    
-    chroma_client.persist()
     return True
 
 
@@ -392,7 +382,6 @@ async def delete_client_collection(client_id: UUID) -> bool:
     
     try:
         chroma_client.delete_collection(collection_name)
-        chroma_client.persist()
         return True
     except:
         return False

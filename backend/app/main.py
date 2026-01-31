@@ -942,16 +942,20 @@ async def upload_document(
     db.add(doc)
     db.commit()
     db.refresh(doc)
-    
-    # Process now so status is COMPLETED/FAILED before we return (BackgroundTasks
-    # often never run after response on Railway, leaving docs stuck in PENDING)
-    doc.status = DocumentStatus.PROCESSING
-    db.commit()
+    doc_id = doc.id
+    print(f"[Documents] Created doc id={doc_id} filename={file.filename} size={file_size}")
+
     try:
+        # Mark processing so we never leave PENDING if something fails before process_document
+        doc.status = DocumentStatus.PROCESSING
+        db.commit()
+        db.refresh(doc)
+        print(f"[Documents] Processing doc id={doc_id} ...")
+
         from .rag import process_document
         chunk_count = await process_document(
             client_id=client.id,
-            doc_id=doc.id,
+            doc_id=doc_id,
             content=contents,
             file_type=file_type,
             filename=file.filename,
@@ -961,19 +965,23 @@ async def upload_document(
         doc.processed_at = datetime.utcnow()
         db.commit()
         db.refresh(doc)
-        print(f"[Documents] Processed {doc.filename}: {chunk_count} chunks")
+        print(f"[Documents] Processed doc id={doc_id} filename={doc.filename} chunks={chunk_count}")
     except Exception as e:
         db.rollback()
-        doc = db.query(Document).filter(Document.id == doc.id).first()
+        # Ensure doc is never left PENDING or PROCESSING; mark FAILED so UI shows error
+        doc = db.query(Document).filter(Document.id == doc_id).first()
         if doc:
             doc.status = DocumentStatus.FAILED
             doc.error_message = str(e)[:500]
             db.commit()
             db.refresh(doc)
-        print(f"[Documents] Failed {file.filename}: {e}")
+        print(f"[Documents] Failed doc id={doc_id} filename={file.filename}: {e}")
         import traceback
         traceback.print_exc()
-    
+        # Return doc so client gets 200 with failed status; UI can show error_message
+        if not doc:
+            raise HTTPException(status_code=500, detail=f"Document processing failed: {e}")
+
     return doc
 
 

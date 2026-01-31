@@ -15,9 +15,13 @@ Uploaded documents were queued with **FastAPI BackgroundTasks** (run *after* the
 2. **Existing PENDING documents** will not be processed by the old background task. For those two docs:
    - **Re-upload the same files** from the dashboard (Documents). The new upload will process in-request and show **Completed** (or Failed with an error message).
    - Optionally delete the old PENDING rows from the dashboard if your UI supports it, to avoid confusion.
-3. **Railway logs**: After deploy, when you upload a document you should see either:
-   - `[Documents] Processed <filename>: N chunks` (success), or  
-   - `[Documents] Failed <filename>: <error>` (failure).
+3. **Railway logs**: In Railway → your service → **Logs**, filter or search for `[Documents]`. You should see, in order:
+   - `[Documents] Created doc id=... filename=... size=...`
+   - `[Documents] Processing doc id=... ...`
+   - Then either:
+     - `[Documents] Processed doc id=... filename=... chunks=N` (success), or  
+     - `[Documents] Failed doc id=... filename=...: <error>` plus a Python traceback (failure).
+   If you see "Created" but never "Processing", the failure is before RAG (e.g. DB). If you see "Processing" then "Failed", the traceback shows the cause (e.g. ChromaDB, extract text, or timeout).
 
 ## RAG usage (how the bot uses your documents)
 

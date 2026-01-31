@@ -65,7 +65,7 @@ def init_db():
             """
         },
         {
-            "name": "Document status enum pending value",
+            "name": "Document status enum values (pending, processing, completed, failed)",
             "sql": """
                 DO $$
                 BEGIN
@@ -73,12 +73,32 @@ def init_db():
                         SELECT 1 FROM pg_type t WHERE t.typname = 'documentstatus'
                     ) THEN
                         IF NOT EXISTS (
-                            SELECT 1
-                            FROM pg_type t
+                            SELECT 1 FROM pg_type t
                             JOIN pg_enum e ON t.oid = e.enumtypid
                             WHERE t.typname = 'documentstatus' AND e.enumlabel = 'pending'
                         ) THEN
                             ALTER TYPE documentstatus ADD VALUE 'pending';
+                        END IF;
+                        IF NOT EXISTS (
+                            SELECT 1 FROM pg_type t
+                            JOIN pg_enum e ON t.oid = e.enumtypid
+                            WHERE t.typname = 'documentstatus' AND e.enumlabel = 'processing'
+                        ) THEN
+                            ALTER TYPE documentstatus ADD VALUE 'processing';
+                        END IF;
+                        IF NOT EXISTS (
+                            SELECT 1 FROM pg_type t
+                            JOIN pg_enum e ON t.oid = e.enumtypid
+                            WHERE t.typname = 'documentstatus' AND e.enumlabel = 'completed'
+                        ) THEN
+                            ALTER TYPE documentstatus ADD VALUE 'completed';
+                        END IF;
+                        IF NOT EXISTS (
+                            SELECT 1 FROM pg_type t
+                            JOIN pg_enum e ON t.oid = e.enumtypid
+                            WHERE t.typname = 'documentstatus' AND e.enumlabel = 'failed'
+                        ) THEN
+                            ALTER TYPE documentstatus ADD VALUE 'failed';
                         END IF;
                     END IF;
                 END $$;
