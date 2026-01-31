@@ -862,7 +862,7 @@ async def upload_document(
     if client.tier == TierEnum.BASIC:
         raise HTTPException(
             status_code=403,
-            detail="Document upload requires Standard or Enterprise tier"
+            detail="Document upload requires Standard or Premium tier"
         )
     
     # Validate file type - Support multiple formats
@@ -913,7 +913,7 @@ async def upload_document(
     contents = await file.read()
     file_size = len(contents)
     
-    # Max 500MB (50x increase from 10MB for enterprise document support)
+    # Max 500MB (50x increase from 10MB for premium document support)
     MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB
     if file_size > MAX_FILE_SIZE:
         raise HTTPException(

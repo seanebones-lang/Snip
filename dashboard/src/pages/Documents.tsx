@@ -18,7 +18,7 @@ interface Document {
 }
 
 interface ClientInfo {
-  tier: 'basic' | 'standard' | 'enterprise'
+  tier: 'basic' | 'standard' | 'premium'
 }
 
 function Documents({ apiKey }: DocumentsProps) {

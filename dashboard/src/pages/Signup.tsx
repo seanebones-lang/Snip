@@ -54,8 +54,8 @@ function Signup() {
       features: ['Everything in Basic', 'Document upload (RAG)', 'Hide branding']
     },
     {
-      id: 'enterprise',
-      name: 'Enterprise',
+      id: 'premium',
+      name: 'Premium',
       price: '$60/mo',
       features: ['Everything in Standard', 'Fine tuning', 'Advanced analytics']
     }

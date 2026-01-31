@@ -3,7 +3,7 @@
 ## Overview
 Customers pay via Stripe first, then receive their API key automatically via email. They log in at **https://snip.mothership-ai.com** using the key.
 
-**Tiers:** Basic ($25/mo), Standard ($40/mo), Enterprise ($60/mo)
+**Tiers:** Basic ($25/mo), Standard ($40/mo), Premium ($60/mo)
 
 ## Primary Flow: Stripe Auto-Issuance (Recommended)
 1. Customer visits **https://snip.mothership-ai.com/signup**

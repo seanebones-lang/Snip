@@ -54,7 +54,7 @@ function Help() {
     },
     {
       question: 'What\'s the difference between tiers?',
-      answer: 'Basic ($25): Core features. Standard ($40): +Documents (RAG). Enterprise ($60): +Advanced analytics.'
+      answer: 'Basic ($25): Core features. Standard ($40): +Documents (RAG). Premium ($60): +Advanced analytics.'
     },
     {
       question: 'Can I upgrade my plan?',

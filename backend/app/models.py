@@ -18,7 +18,7 @@ from .database import Base
 class TierEnum(str, enum.Enum):
     BASIC = "basic"
     STANDARD = "standard"
-    ENTERPRISE = "enterprise"
+    PREMIUM = "premium"
 
 
 class DocumentStatus(str, enum.Enum):
@@ -46,7 +46,11 @@ class Client(Base):
     company_name = Column(String(255), nullable=False)
     
     # Subscription
-    tier = Column(SQLEnum(TierEnum), default=TierEnum.BASIC, nullable=False)
+    tier = Column(
+        SQLEnum(TierEnum, values_callable=lambda obj: [e.value for e in obj]),
+        default=TierEnum.BASIC,
+        nullable=False
+    )
     is_active = Column(Boolean, default=True, nullable=False)
     
     # Stripe subscription fields
@@ -168,7 +172,11 @@ class Document(Base):
     file_size = Column(Integer, nullable=False)  # bytes
     
     # Processing status
-    status = Column(SQLEnum(DocumentStatus), default=DocumentStatus.PENDING, nullable=False)
+    status = Column(
+        SQLEnum(DocumentStatus, values_callable=lambda obj: [e.value for e in obj]),
+        default=DocumentStatus.PENDING,
+        nullable=False
+    )
     chunk_count = Column(Integer, default=0, nullable=False)
     error_message = Column(Text, nullable=True)
     

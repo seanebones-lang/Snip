@@ -9,7 +9,7 @@ interface ClientInfo {
   id: string
   email: string
   company_name: string
-  tier: 'basic' | 'standard' | 'enterprise'
+  tier: 'basic' | 'standard' | 'premium'
   is_active: boolean
   created_at: string
 }
@@ -175,7 +175,7 @@ function Dashboard({ apiKey }: DashboardProps) {
                 Upgrade to Standard ($40/mo)
               </button>
               <button className="btn btn-secondary" style={{ background: 'rgba(34, 197, 94, 0.2)', borderColor: 'var(--success)', color: 'var(--success)' }}>
-                Enterprise ($60/mo)
+                Premium ($60/mo)
               </button>
             </div>
           )}

@@ -22,27 +22,31 @@ class CheckoutRequest(BaseModel):
 
 @router.post("/api/checkout")
 async def create_checkout_session(request: CheckoutRequest):
+    tier = request.tier.strip().lower()
+    if tier == "enterprise":
+        tier = "premium"
+
     price_map = {
         "basic": settings.stripe_price_id_basic,
         "standard": settings.stripe_price_id_standard,
-        "enterprise": settings.stripe_price_id_enterprise
+        "premium": settings.stripe_price_id_premium or settings.stripe_price_id_enterprise
     }
     
-    if request.tier not in price_map:
+    if tier not in price_map or not price_map[tier]:
         raise HTTPException(status_code=400, detail="Invalid tier")
     
     try:
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{
-                "price": price_map[request.tier],
+                "price": price_map[tier],
                 "quantity": 1,
             }],
             mode="subscription",
             success_url=settings.stripe_success_url + "?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=settings.stripe_cancel_url,
             metadata={
-                "tier": request.tier,
+                "tier": tier,
                 "email": request.email,
                 "company_name": request.company_name
             },
@@ -69,12 +73,18 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         metadata = session.get('metadata', {})
-        tier_str = metadata.get('tier')
+        tier_str = (metadata.get('tier') or "").lower()
         email = metadata.get('email') or session.get('customer_email')
         company_name = metadata.get('company_name')
+
+        if tier_str == "enterprise":
+            tier_str = "premium"
         
         if not email or not company_name or not tier_str:
             return {"status": "missing_metadata"}
+
+        if tier_str not in {"basic", "standard", "premium"}:
+            return {"status": "invalid_tier"}
         
         tier = TierEnum[tier_str.upper()]
         

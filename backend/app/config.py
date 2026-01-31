@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = ""
     stripe_price_id_basic: str = ""
     stripe_price_id_standard: str = ""
+    stripe_price_id_premium: str = ""
     stripe_price_id_enterprise: str = ""
     stripe_success_url: str = "https://snip.mothership-ai.com/success"
     stripe_cancel_url: str = "https://snip.mothership-ai.com/signup"

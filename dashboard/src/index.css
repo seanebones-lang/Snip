@@ -394,6 +394,11 @@ textarea.form-input {
   color: var(--primary);
 }
 
+.badge-standard {
+  background: rgba(34, 197, 94, 0.2);
+  color: var(--success);
+}
+
 .badge-premium {
   background: rgba(236, 72, 153, 0.2);
   color: #ec4899;
