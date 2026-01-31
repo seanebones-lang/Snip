@@ -10,6 +10,7 @@ from typing import Optional
 from datetime import date, datetime
 import os
 import time
+import threading
 import requests
 import httpx
 import websockets
@@ -44,6 +45,28 @@ from slowapi.errors import RateLimitExceeded
 
 settings = get_settings()
 limiter = Limiter(key_func=get_remote_address)
+
+# Per-client_id rate limit for /api/chat (Issue 6) - in-memory, 120/min per client
+_chat_rate_cache: dict = {}
+_chat_rate_lock = threading.Lock()
+CHAT_RATE_LIMIT = 120
+CHAT_RATE_WINDOW_SEC = 60.0
+
+
+def _check_chat_rate_limit(client_id: UUID) -> bool:
+    """Return True if allowed, False if over limit (120/min per client_id)."""
+    now = time.time()
+    key = str(client_id)
+    with _chat_rate_lock:
+        if key not in _chat_rate_cache:
+            _chat_rate_cache[key] = []
+        times = _chat_rate_cache[key]
+        times[:] = [t for t in times if now - t < CHAT_RATE_WINDOW_SEC]
+        if len(times) >= CHAT_RATE_LIMIT:
+            return False
+        times.append(now)
+    return True
+
 
 # TTS Configuration (Voice API endpoints)
 TTS_REALTIME_WS = "wss://api.x.ai/v1/realtime"
@@ -487,7 +510,7 @@ class ResendApiKeyRequest(PydanticBaseModel):
 @app.post("/api/resend-api-key")
 @limiter.limit("5/minute")
 async def resend_api_key(
-    req: Request,
+    request: Request,
     body: ResendApiKeyRequest,
     db: Session = Depends(get_db)
 ):
@@ -500,6 +523,8 @@ async def resend_api_key(
     email_lower = body.email.strip().lower()
     client = db.query(Client).filter(func.lower(Client.email) == email_lower).first()
     if not client:
+        return {"status": "success", "message": "If an account exists for this email, a new API key has been sent."}
+    if not client.is_active:
         return {"status": "success", "message": "If an account exists for this email, a new API key has been sent."}
     api_key = generate_api_key()
     client.api_key = api_key[:16] + "..."
@@ -573,13 +598,20 @@ async def get_widget_config(
     if not client or not client.config:
         raise HTTPException(status_code=404, detail="Client not found")
     
-    # Check domain allowlist if configured
+    # Gate: only active or grace-period subscriptions (Issue 1)
+    if not client.is_active:
+        raise HTTPException(status_code=403, detail="Account inactive")
+    if client.stripe_subscription_status and client.stripe_subscription_status.lower() not in ("active", "trialing", "past_due"):
+        raise HTTPException(status_code=403, detail="Subscription not active")
+    
+    # Check domain allowlist; reject when allowlist set but no Origin (Issue 2)
     config = client.config
-    if config.allowed_domains and origin:
-        # Extract domain from origin
+    origin_val = (origin or "").strip()
+    if config.allowed_domains:
+        if not origin_val:
+            raise HTTPException(status_code=403, detail="Origin required")
         allowed = any(
-            domain in origin 
-            for domain in config.allowed_domains
+            (d.strip() in origin_val) for d in config.allowed_domains if d and isinstance(d, str)
         )
         if not allowed:
             raise HTTPException(status_code=403, detail="Domain not allowed")
@@ -594,8 +626,8 @@ async def get_widget_config(
 @app.post("/api/chat", response_model=ChatResponse)
 @limiter.limit("120/minute")
 async def chat(
-    req: Request,
-    request: ChatRequest,
+    request: Request,
+    body: ChatRequest,
     db: Session = Depends(get_db)
 ):
     """
@@ -604,20 +636,31 @@ async def chat(
     """
     # Get client
     client = db.query(Client).filter(
-        Client.id == request.client_id,
+        Client.id == body.client_id,
         Client.is_active == True
     ).first()
     
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     
+    # Gate: only active or grace-period subscriptions (Issue 1)
+    if not client.is_active:
+        raise HTTPException(status_code=403, detail="Account inactive")
+    if client.stripe_subscription_status and client.stripe_subscription_status.lower() not in ("active", "trialing", "past_due"):
+        raise HTTPException(status_code=403, detail="Subscription not active")
+    
+    if not _check_chat_rate_limit(client.id):
+        raise HTTPException(status_code=429, detail="Too many requests")
+    
     config = client.config
     if not config:
         raise HTTPException(status_code=500, detail="Client config missing")
     
-    # Enforce allowed_domains if configured (same logic as widget config)
-    origin = req.headers.get("origin") or req.headers.get("referer") or ""
-    if config.allowed_domains and origin:
+    # Enforce allowed_domains if configured; reject when allowlist set but no Origin (Issue 2)
+    origin = (request.headers.get("origin") or request.headers.get("referer") or "").strip()
+    if config.allowed_domains:
+        if not origin:
+            raise HTTPException(status_code=403, detail="Origin required")
         allowed = any(
             (d.strip() in origin) for d in config.allowed_domains if d and isinstance(d, str)
         )
@@ -640,7 +683,7 @@ Guidelines:
     if client.tier != TierEnum.BASIC:
         try:
             from .rag import retrieve_context
-            rag_context = await retrieve_context(client.id, request.message) or ""
+            rag_context = await retrieve_context(client.id, body.message) or ""
             
             # Track RAG query
             if rag_context:
@@ -705,7 +748,7 @@ Use this context to answer questions when relevant.
             "model": model,
             "messages": [
                 {"role": "system", "content": base_prompt},
-                {"role": "user", "content": request.message}
+                {"role": "user", "content": body.message}
             ],
             "max_tokens": 500,
             "temperature": 0.7
@@ -751,7 +794,7 @@ Use this context to answer questions when relevant.
             user_msg = ConversationMessage(
                 conversation_id=conversation.id,
                 role='user',
-                content=request.message
+                content=body.message
             )
             db.add(user_msg)
             
@@ -788,7 +831,7 @@ Use this context to answer questions when relevant.
         
         usage.message_count = (usage.message_count or 0) + 1
         # Estimate tokens (rough approximation)
-        usage.token_count = (usage.token_count or 0) + len(request.message.split()) + len(response_text.split())
+        usage.token_count = (usage.token_count or 0) + len(body.message.split()) + len(response_text.split())
         
         db.commit()
         
@@ -992,7 +1035,7 @@ async def upload_document(
     contents = await file.read()
     file_size = len(contents)
     
-    # Max 500MB (50x increase from 10MB for premium document support)
+    # Max 500MB; very large files are processed in-request and may timeout on Railway (Issue 5)
     MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB
     if file_size > MAX_FILE_SIZE:
         raise HTTPException(

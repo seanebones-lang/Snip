@@ -1,11 +1,12 @@
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 from typing import Dict
 import stripe
-from .models import Client, ClientConfig, TierEnum
-from .database import get_db
 from sqlalchemy.orm import Session
-from uuid import uuid4
+from sqlalchemy.exc import IntegrityError
+from .models import Client, ClientConfig, TierEnum, ProcessedStripeEvent
+from .database import get_db
 from .auth import generate_api_key, hash_api_key
 from .config import get_settings
 from .email import send_api_key_email
@@ -69,6 +70,14 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400)
     except stripe.error.SignatureVerificationError:
         raise HTTPException(status_code=400)
+    
+    # Idempotency: skip duplicate events (Stripe retries)
+    try:
+        db.add(ProcessedStripeEvent(event_id=event["id"], processed_at=datetime.utcnow()))
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return {"status": "duplicate"}
     
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
@@ -158,6 +167,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         client = db.query(Client).filter(Client.stripe_subscription_id == sub_id).first()
         if client:
             client.stripe_subscription_status = "canceled"
+            client.is_active = False
             db.commit()
         return {"status": "success"}
     

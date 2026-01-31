@@ -295,3 +295,10 @@ class FAQ(Base):
     
     def __repr__(self):
         return f"<FAQ {self.question[:50]}...>"
+
+
+class ProcessedStripeEvent(Base):
+    """Stripe webhook event idempotency - skip duplicate events (retries)."""
+    __tablename__ = "processed_stripe_events"
+    event_id = Column(String(255), primary_key=True)
+    processed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
