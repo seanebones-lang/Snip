@@ -45,7 +45,7 @@ Turn your AI chatbot into sellable "snippets" - embeddable widgets that clients 
 - **One-line installation** - paste a script tag, done
 - **Full branding** - custom colors, logo, bot name, welcome message
 - **Custom AI personality** - system prompt customization
-- **Document training (Premium)** - upload PDFs/docs for RAG
+- **Document training (Standard+)** - upload PDFs/docs for RAG
 
 ## Project Structure
 
@@ -78,7 +78,7 @@ Snip/
 - Python 3.10+
 - Node.js 18+
 - PostgreSQL
-- xAI API key (for Grok)
+- AI API key (configured in backend environment)
 
 ### 1. Backend Setup
 
@@ -188,8 +188,8 @@ Add this to any HTML page:
 
 ### Widget (Vercel/CDN)
 1. Build: `npm run build`
-2. Deploy `dist/widget.js` to CDN
-3. Update `WIDGET_CDN_URL` in backend
+2. Deploy `dist/widget.js` to Vercel or a CDN
+3. Update `WIDGET_CDN_URL` in backend if using a CDN
 
 ### Dashboard (Vercel)
 1. Connect to Vercel
@@ -198,15 +198,15 @@ Add this to any HTML page:
 
 ## Pricing Tiers
 
-| Feature | Basic | Premium |
-|---------|-------|---------|
-| Custom branding | ✓ | ✓ |
-| Custom colors | ✓ | ✓ |
-| Welcome message | ✓ | ✓ |
-| System prompt | ✓ | ✓ |
-| Document upload | ✗ | ✓ |
-| RAG training | ✗ | ✓ |
-| Remove branding | ✗ | ✓ |
+| Feature | Basic | Standard | Premium |
+|---------|-------|----------|---------|
+| Custom branding | ✓ | ✓ | ✓ |
+| Custom colors | ✓ | ✓ | ✓ |
+| Welcome message | ✓ | ✓ | ✓ |
+| System prompt | ✓ | ✓ | ✓ |
+| Document upload | ✗ | ✓ | ✓ |
+| RAG training | ✗ | ✓ | ✓ |
+| Advanced customization (sizes, themes, CSS) | ✓ | ✓ | ✓ |
 
 ## License
 
