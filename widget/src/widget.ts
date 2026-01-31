@@ -879,14 +879,6 @@ class SnipWidget {
         timestamp: new Date(),
         audio_url: data.audio_url
       })
-      
-      // Use audio_url from backend if provided (already generated), otherwise generate TTS
-      if (data.audio_url) {
-        this.playAudioFromUrl(data.audio_url, data.response) // Pass text as fallback
-      } else {
-        // Fallback: generate TTS client-side if backend didn't provide audio
-        this.generateAndPlayAudio(data.response)
-      }
     } catch (error) {
       this.messages.push({
         role: 'assistant',
