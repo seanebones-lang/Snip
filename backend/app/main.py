@@ -590,19 +590,25 @@ async def get_widget_config(
     Get widget configuration (public endpoint)
     Called by the embedded widget to get branding
     """
-    client = db.query(Client).filter(
-        Client.id == client_id,
-        Client.is_active == True
-    ).first()
-    
+    # Allow permanent demo client: lookup without is_active filter when client_id matches
+    permanent_client_id = (settings.permanent_api_key_client_id or "").strip()
+    if permanent_client_id and str(client_id) == permanent_client_id:
+        client = db.query(Client).filter(Client.id == client_id).first()
+    else:
+        client = db.query(Client).filter(
+            Client.id == client_id,
+            Client.is_active == True
+        ).first()
+
     if not client or not client.config:
         raise HTTPException(status_code=404, detail="Client not found")
-    
-    # Gate: only active or grace-period subscriptions (Issue 1)
-    if not client.is_active:
-        raise HTTPException(status_code=403, detail="Account inactive")
-    if client.stripe_subscription_status and client.stripe_subscription_status.lower() not in ("active", "trialing", "past_due"):
-        raise HTTPException(status_code=403, detail="Subscription not active")
+
+    # Gate: only active or grace-period subscriptions (Issue 1); skip for permanent demo client
+    if not (permanent_client_id and str(client_id) == permanent_client_id):
+        if not client.is_active:
+            raise HTTPException(status_code=403, detail="Account inactive")
+        if client.stripe_subscription_status and client.stripe_subscription_status.lower() not in ("active", "trialing", "past_due"):
+            raise HTTPException(status_code=403, detail="Subscription not active")
     
     # Check domain allowlist; reject when allowlist set but no Origin (Issue 2)
     config = client.config
@@ -634,20 +640,25 @@ async def chat(
     Multi-tenant chat endpoint
     Called by widget with client_id
     """
-    # Get client
-    client = db.query(Client).filter(
-        Client.id == body.client_id,
-        Client.is_active == True
-    ).first()
-    
+    # Allow permanent demo client: lookup without is_active filter when client_id matches
+    permanent_client_id = (settings.permanent_api_key_client_id or "").strip()
+    if permanent_client_id and str(body.client_id) == permanent_client_id:
+        client = db.query(Client).filter(Client.id == body.client_id).first()
+    else:
+        client = db.query(Client).filter(
+            Client.id == body.client_id,
+            Client.is_active == True
+        ).first()
+
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
-    
-    # Gate: only active or grace-period subscriptions (Issue 1)
-    if not client.is_active:
-        raise HTTPException(status_code=403, detail="Account inactive")
-    if client.stripe_subscription_status and client.stripe_subscription_status.lower() not in ("active", "trialing", "past_due"):
-        raise HTTPException(status_code=403, detail="Subscription not active")
+
+    # Gate: only active or grace-period subscriptions (Issue 1); skip for permanent demo client
+    if not (permanent_client_id and str(body.client_id) == permanent_client_id):
+        if not client.is_active:
+            raise HTTPException(status_code=403, detail="Account inactive")
+        if client.stripe_subscription_status and client.stripe_subscription_status.lower() not in ("active", "trialing", "past_due"):
+            raise HTTPException(status_code=403, detail="Subscription not active")
     
     if not _check_chat_rate_limit(client.id):
         raise HTTPException(status_code=429, detail="Too many requests")

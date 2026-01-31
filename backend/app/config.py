@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     backend_public_url: str = "https://snip.mothership-ai.com"
     widget_cdn_url: str = "https://widget-sigma-sage.vercel.app"
 
+    # Permanent demo key: when this exact key is used, treat as full-access for the given client (by email).
+    # Set PERMANENT_API_KEY and PERMANENT_API_KEY_CLIENT_EMAIL in Railway so this key never expires.
+    # Optional: PERMANENT_API_KEY_CLIENT_ID (UUID string) skips is_active/subscription for widget/chat for that client.
+    permanent_api_key: str = ""
+    permanent_api_key_client_email: str = ""
+    permanent_api_key_client_id: str = ""  # UUID of demo client so widget/chat bypass checks
+
 
 @lru_cache()
 def get_settings() -> Settings:
