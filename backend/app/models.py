@@ -17,7 +17,8 @@ from .database import Base
 
 class TierEnum(str, enum.Enum):
     BASIC = "basic"
-    PREMIUM = "premium"
+    STANDARD = "standard"
+    ENTERPRISE = "enterprise"
 
 
 class DocumentStatus(str, enum.Enum):
@@ -47,6 +48,11 @@ class Client(Base):
     # Subscription
     tier = Column(SQLEnum(TierEnum), default=TierEnum.BASIC, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    
+    # Stripe subscription fields
+    stripe_customer_id = Column(String(255), unique=True, nullable=True)
+    stripe_subscription_id = Column(String(255), unique=True, nullable=True)
+    stripe_subscription_status = Column(String(50), default="active", nullable=False)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -107,6 +113,9 @@ class ClientConfig(Base):
     widget_height = Column(Integer, nullable=True)  # Custom height in pixels (default: 550px)
     custom_css = Column(Text, nullable=True)  # Custom CSS for advanced styling
     theme = Column(String(50), nullable=True)  # Theme preset: 'light', 'dark', 'auto', 'custom'
+    
+    # Onboarding
+    has_completed_onboarding = Column(Boolean, default=False, nullable=False)
     
     # Security
     allowed_domains = Column(JSON, default=list, nullable=False)  # List of domains where widget can load

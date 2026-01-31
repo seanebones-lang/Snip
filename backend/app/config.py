@@ -20,6 +20,18 @@ class Settings(BaseSettings):
     # API Keys
     xai_api_key: str = ""
     
+    # Stripe
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_id_basic: str = ""
+    stripe_price_id_standard: str = ""
+    stripe_price_id_enterprise: str = ""
+    stripe_success_url: str = "https://snip.mothership-ai.com/success"
+    stripe_cancel_url: str = "https://snip.mothership-ai.com/signup"
+    
+    # Email
+    resend_api_key: str = ""
+    
     # JWT Auth
     secret_key: str = "your-secret-key-change-in-production"
     algorithm: str = "HS256"

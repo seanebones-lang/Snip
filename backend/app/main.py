@@ -35,6 +35,7 @@ from .auth import (
     generate_api_key, hash_api_key,
     get_client_from_api_key, get_client_from_client_id
 )
+from .stripe_routes import router as stripe_router
 
 settings = get_settings()
 
@@ -273,6 +274,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
+app.include_router(stripe_router, prefix="/api", tags=["stripe"])
+
 # CORS - allow widget to load from any domain
 # Note: allow_credentials=False because we use API keys in headers, not cookies
 # Browsers don't allow allow_origins=["*"] with allow_credentials=True
@@ -354,7 +357,7 @@ async def healthz_db(db: Session = Depends(get_db)):
 
 # ============== Client Management ==============
 
-@app.post("/api/clients", response_model=ClientWithApiKey)
+@app.post("/api/clients", response_model=ClientWithApiKey, status_code=201)
 async def create_client(
     client_data: ClientCreate,
     db: Session = Depends(get_db)
