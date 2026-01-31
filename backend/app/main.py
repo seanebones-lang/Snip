@@ -122,17 +122,17 @@ async def generate_tts_audio(text: str, api_key: str, voice: str = "Ara") -> Opt
         ) as ws:
             
             # Step 3: Send session configuration
-            # CRITICAL: We use the Voice Agent for TTS only. We send our bot's reply text as "user"
-            # input, so we must instruct the agent to SPEAK that text verbatim, not respond to it.
+            # CRITICAL: Voice Agent is conversational (user says X → assistant says Y). We send our
+            # bot's reply as "user" input and force repeat via instruction + message framing.
             session_update = {
                 "type": "session.update",
                 "session": {
                     "voice": voice,
                     "instructions": (
-                        "You are a text-to-speech engine only. When the user sends a message, "
-                        "you must speak exactly what they wrote, word for word. Do not add greetings, "
-                        "questions, or any reply. Do not interpret or respond to the content—only "
-                        "read it aloud clearly and naturally. Output nothing else."
+                        "You are a text-to-speech engine. The user will send a line that starts with "
+                        "'SPEAK:' followed by the exact words to speak. Your ONLY output is to speak "
+                        "those words—the part after 'SPEAK:'. Do not say 'SPEAK:' or anything else. "
+                        "No greetings, no questions, no comment. Just the words after SPEAK:."
                     ),
                     "audio": {
                         "input": {"format": {"type": "audio/pcm", "rate": 24000}},
@@ -158,18 +158,19 @@ async def generate_tts_audio(text: str, api_key: str, voice: str = "Ara") -> Opt
             if not session_ready:
                 print(f"[TTS] Warning: Session update not confirmed")
             
-            # Step 4: Send our bot's reply text as "user" input; with the instructions above,
-            # the Voice Agent will speak it verbatim (TTS) instead of replying to it.
+            # Step 4: Send our bot's reply with SPEAK: prefix so the model speaks only the content
+            # (Voice Agent has no true TTS-only mode; instruction says output = words after SPEAK:).
+            tts_user_message = f"SPEAK: {text}"
             item_message = {
                 "type": "conversation.item.create",
                 "item": {
                     "type": "message",
                     "role": "user",
-                    "content": [{"type": "input_text", "text": text}]
+                    "content": [{"type": "input_text", "text": tts_user_message}]
                 }
             }
             await ws.send(json.dumps(item_message))
-            print(f"[TTS] Sent text input: {text[:50]}...")
+            print(f"[TTS] Sent text input (say exactly): {text[:50]}...")
             
             # Wait for conversation.item.added
             item_added = False
@@ -186,11 +187,11 @@ async def generate_tts_audio(text: str, api_key: str, voice: str = "Ara") -> Opt
             if not item_added:
                 print(f"[TTS] Warning: Conversation item not confirmed")
             
-            # Step 5: Create response to generate audio
+            # Step 5: Request audio only so the model doesn't "reply" in text first
             response_message = {
                 "type": "response.create",
                 "response": {
-                    "modalities": ["text", "audio"]
+                    "modalities": ["audio"]
                 }
             }
             await ws.send(json.dumps(response_message))
