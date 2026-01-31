@@ -185,6 +185,8 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     if event["type"] == "invoice.payment_failed":
         inv = event["data"]["object"]
         sub_id = inv.get("subscription")
+        if isinstance(sub_id, dict):
+            sub_id = sub_id.get("id")
         if sub_id:
             client = db.query(Client).filter(Client.stripe_subscription_id == sub_id).first()
             if client:

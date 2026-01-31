@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { MessageSquare, Zap, FileText, Calendar, TrendingUp } from 'lucide-react'
+import { apiUrl } from '../api'
 
 interface UsageProps {
   apiKey: string
@@ -30,10 +31,10 @@ function Usage({ apiKey }: UsageProps) {
       setLoading(true)
       try {
         const [usageRes, conversationsRes] = await Promise.all([
-          fetch(`/api/usage?days=${days}`, {
+          fetch(apiUrl(`/api/usage?days=${days}`), {
             headers: { 'X-API-Key': apiKey }
           }),
-          fetch(`/api/conversations?limit=100`, {
+          fetch(apiUrl(`/api/conversations?limit=100`), {
             headers: { 'X-API-Key': apiKey }
           })
         ])
