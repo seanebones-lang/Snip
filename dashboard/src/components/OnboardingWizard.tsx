@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react'
 
 interface OnboardingWizardProps {
@@ -43,7 +43,9 @@ const steps = [
     content: (
       <>
         <p>Go to the <strong>Embed Snippet</strong> page to copy your code.</p>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Paste it before the `</body>` tag on your site.</p>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          Paste it before the <code>&lt;/body&gt;</code> tag on your site.
+        </p>
         <a href="/snippet" style={{ display: 'inline-block', marginTop: 16 }}>Get Embed Code →</a>
       </>
     )

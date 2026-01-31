@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Check, AlertCircle } from 'lucide-react'
+import { Check } from 'lucide-react'
 
 interface SetupChecklistProps {
   apiKey: string
@@ -80,7 +80,9 @@ function SetupChecklist({ apiKey }: SetupChecklistProps) {
           </div>
           <div>
             <div style={{ fontWeight: 500 }}>Add widget to site</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Paste code before `</body>` tag</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              Paste code before <code>&lt;/body&gt;</code> tag
+            </div>
           </div>
         </div>
 
