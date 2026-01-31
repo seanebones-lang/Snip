@@ -30,5 +30,5 @@ aiofiles==23.2.1
 mangum==0.17.0  # ASGI adapter for Vercel/Lambda serverless functions
 # Note: uuid is part of Python standard library, no need to install
 
-stripe==9.7.0
+stripe==8.8.0
 resend==0.6.0  # for auto-send API key email

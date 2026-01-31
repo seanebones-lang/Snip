@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm build",
+  "outputDirectory": "dashboard/dist",
+  "installCommand": "cd dashboard && pnpm install",
+  "framework": "vite"
+}

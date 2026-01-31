@@ -494,7 +494,7 @@ class SnipWidget {
         
         ${this.config.showBranding ? `
           <div class="snip-branding">
-            Powered by <a href="https://snip.dev" target="_blank" rel="noopener">Snip</a>
+            Powered by <a href="https://mothership-ai.com" target="_blank" rel="noopener">Snip by NextEleven</a>
           </div>
         ` : ''}
       </div>
