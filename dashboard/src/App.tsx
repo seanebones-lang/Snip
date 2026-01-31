@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -21,7 +21,6 @@ function App() {
   })
   
   const [showWizard, setShowWizard] = useState(false)
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(true)
   
   const handleLogin = (key: string) => {
     localStorage.setItem('snip_api_key', key)
@@ -43,7 +42,6 @@ function App() {
       fetch('/api/config', {
         headers: { 'X-API-Key': apiKey }
       }).then(res => res.json()).then(data => {
-        setHasCompletedOnboarding(data.has_completed_onboarding || false)
         setShowWizard(!data.has_completed_onboarding)
       }).catch(() => {
         setShowWizard(false)
@@ -55,7 +53,7 @@ function App() {
     return (
       <Routes>
         <Route path="/" element={<Signup />} />
-      <Route path="/login" element={<Login onLogin={handleLogin} />} />
+        <Route path="/login" element={<Login onLogin={handleLogin} />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/success" element={<Success />} />
         <Route path="/help" element={<Help />} />

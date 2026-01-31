@@ -28,7 +28,6 @@ function TestChat({ apiKey }: TestChatProps) {
   const [audioEnabled, setAudioEnabled] = useState(true)
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const configLoading = useState(true)[0]
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -64,7 +63,6 @@ function TestChat({ apiKey }: TestChatProps) {
         console.error('Failed to fetch config:', error)
         setError('Failed to load configuration')
       } finally {
-        // configLoading would be set here if we had the state setter
       }
     }
     

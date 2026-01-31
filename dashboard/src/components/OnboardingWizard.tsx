@@ -66,7 +66,6 @@ const steps = [
 
 function OnboardingWizard({ apiKey, onComplete, isOpen, onClose }: OnboardingWizardProps) {
   const [currentStep, setCurrentStep] = useState(1)
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
 
   const completeOnboarding = async () => {
     try {
@@ -79,7 +78,6 @@ function OnboardingWizard({ apiKey, onComplete, isOpen, onClose }: OnboardingWiz
         body: JSON.stringify({ has_completed_onboarding: true })
       })
       if (response.ok) {
-        setHasCompletedOnboarding(true)
         onComplete()
       }
     } catch (error) {

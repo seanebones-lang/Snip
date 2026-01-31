@@ -13,7 +13,6 @@ function SetupChecklist({ apiKey }: SetupChecklistProps) {
     testDone: false,
     documentsUploaded: false
   })
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Optional: fetch checklist progress from backend
@@ -25,7 +24,6 @@ function SetupChecklist({ apiKey }: SetupChecklistProps) {
       testDone: false,
       documentsUploaded: false
     })
-    setLoading(false)
   }, [apiKey])
 
   const totalSteps = Object.keys(checklist).length

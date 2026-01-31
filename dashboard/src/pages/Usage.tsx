@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MessageSquare, Zap, FileText, Calendar, TrendingUp, Clock } from 'lucide-react'
+import { MessageSquare, Zap, FileText, Calendar, TrendingUp } from 'lucide-react'
 
 interface UsageProps {
   apiKey: string

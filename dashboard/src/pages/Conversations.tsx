@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MessageSquare, Search, Calendar } from 'lucide-react'
+import { MessageSquare, Search } from 'lucide-react'
 
 interface ConversationsProps {
   apiKey: string

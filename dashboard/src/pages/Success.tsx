@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle, ArrowLeft } from 'lucide-react'
+import { CheckCircle } from 'lucide-react'
 
 function Success() {
   const [sessionId, setSessionId] = useState('')
