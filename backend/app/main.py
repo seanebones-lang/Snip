@@ -35,9 +35,15 @@ from .auth import (
     generate_api_key, hash_api_key,
     get_client_from_api_key, get_client_from_client_id
 )
+from .email import send_api_key_email
 from .stripe_routes import router as stripe_router
+from pydantic import BaseModel as PydanticBaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 settings = get_settings()
+limiter = Limiter(key_func=get_remote_address)
 
 # TTS Configuration (Voice API endpoints)
 TTS_REALTIME_WS = "wss://api.x.ai/v1/realtime"
@@ -282,6 +288,8 @@ app = FastAPI(
     description="Multi-tenant chatbot snippet service",
     version="1.0.0"
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.include_router(stripe_router, prefix="/api", tags=["stripe"])
 
@@ -364,10 +372,32 @@ async def healthz_db(db: Session = Depends(get_db)):
         }
 
 
+@app.get("/healthz/ready")
+async def healthz_ready(db: Session = Depends(get_db)):
+    """
+    Readiness check: DB connection and optional external config presence.
+    Returns 503 if DB unreachable; 200 with details for xAI/Resend/Stripe config.
+    """
+    try:
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Database not ready: {e}")
+    checks = {
+        "database": "ok",
+        "xai_configured": bool(settings.xai_api_key),
+        "resend_configured": bool(settings.resend_api_key),
+        "stripe_configured": bool(settings.stripe_secret_key and settings.stripe_webhook_secret),
+    }
+    return {"status": "ready", "checks": checks}
+
+
 # ============== Client Management ==============
 
 @app.post("/api/clients", response_model=ClientWithApiKey, status_code=201)
+@limiter.limit("30/minute")
 async def create_client(
+    request: Request,
     client_data: ClientCreate,
     db: Session = Depends(get_db)
 ):
@@ -448,6 +478,36 @@ async def create_client(
             status_code=500,
             detail=f"Failed to create client: {str(e)}. Please check database migration status."
         )
+
+
+class ResendApiKeyRequest(PydanticBaseModel):
+    email: str
+
+
+@app.post("/api/resend-api-key")
+@limiter.limit("5/minute")
+async def resend_api_key(
+    req: Request,
+    body: ResendApiKeyRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Request a new API key to be sent to the given email.
+    If an account exists, a new key is generated, stored, and emailed.
+    Same response whether or not account exists (avoids email enumeration).
+    """
+    from sqlalchemy import func
+    email_lower = body.email.strip().lower()
+    client = db.query(Client).filter(func.lower(Client.email) == email_lower).first()
+    if not client:
+        return {"status": "success", "message": "If an account exists for this email, a new API key has been sent."}
+    api_key = generate_api_key()
+    client.api_key = api_key[:16] + "..."
+    client.api_key_hash = hash_api_key(api_key)
+    db.commit()
+    tier_str = client.tier.value if hasattr(client.tier, "value") else str(client.tier)
+    send_api_key_email(client.email, api_key, tier_str)
+    return {"status": "success", "message": "If an account exists for this email, a new API key has been sent."}
 
 
 @app.get("/api/clients/me", response_model=ClientResponse)
@@ -532,9 +592,10 @@ async def get_widget_config(
 # ============== Chat Endpoint ==============
 
 @app.post("/api/chat", response_model=ChatResponse)
+@limiter.limit("120/minute")
 async def chat(
-    request: ChatRequest,
     req: Request,
+    request: ChatRequest,
     db: Session = Depends(get_db)
 ):
     """
@@ -553,6 +614,15 @@ async def chat(
     config = client.config
     if not config:
         raise HTTPException(status_code=500, detail="Client config missing")
+    
+    # Enforce allowed_domains if configured (same logic as widget config)
+    origin = req.headers.get("origin") or req.headers.get("referer") or ""
+    if config.allowed_domains and origin:
+        allowed = any(
+            (d.strip() in origin) for d in config.allowed_domains if d and isinstance(d, str)
+        )
+        if not allowed:
+            raise HTTPException(status_code=403, detail="Domain not allowed")
     
     # Build system prompt with client customization
     base_prompt = f"""You are {config.bot_name}, an AI assistant for {client.company_name}.

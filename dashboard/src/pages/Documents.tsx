@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Upload, FileText, Trash2, Clock, CheckCircle, XCircle, Loader } from 'lucide-react'
+import { apiUrl } from '../api'
 
 interface DocumentsProps {
   apiKey: string
@@ -30,7 +31,7 @@ function Documents({ apiKey }: DocumentsProps) {
   
   const fetchDocuments = async () => {
     try {
-      const res = await fetch('/api/documents', {
+      const res = await fetch(apiUrl('/api/documents'), {
         headers: { 'X-API-Key': apiKey }
       })
       if (res.ok) {
@@ -46,7 +47,7 @@ function Documents({ apiKey }: DocumentsProps) {
     const init = async () => {
       try {
         const [clientRes] = await Promise.all([
-          fetch('/api/clients/me', {
+          fetch(apiUrl('/api/clients/me'), {
             headers: { 'X-API-Key': apiKey }
           })
         ])
@@ -76,7 +77,7 @@ function Documents({ apiKey }: DocumentsProps) {
       const formData = new FormData()
       formData.append('file', file)
       
-      const res = await fetch('/api/documents', {
+      const res = await fetch(apiUrl('/api/documents'), {
         method: 'POST',
         headers: {
           'X-API-Key': apiKey
@@ -105,7 +106,7 @@ function Documents({ apiKey }: DocumentsProps) {
     if (!confirm('Are you sure you want to delete this document?')) return
     
     try {
-      const res = await fetch(`/api/documents/${docId}`, {
+      const res = await fetch(apiUrl(`/api/documents/${docId}`), {
         method: 'DELETE',
         headers: { 'X-API-Key': apiKey }
       })

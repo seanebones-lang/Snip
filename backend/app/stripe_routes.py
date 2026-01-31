@@ -119,7 +119,9 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 existing.stripe_subscription_id = stripe_subscription_id
             existing.stripe_subscription_status = 'active'
             db.commit()
-            send_api_key_email(email, api_key, tier_str)
+            email_ok = send_api_key_email(email, api_key, tier_str)
+            if not email_ok:
+                return {"status": "email_failed", "message": "Account created but API key email failed; check logs."}
         else:
             if not email or not company_name:
                 return {"status": "missing_metadata"}
@@ -144,8 +146,50 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             db.add(config)
             db.commit()
             
-            send_api_key_email(email, api_key, tier_str)
+            email_ok = send_api_key_email(email, api_key, tier_str)
+            if not email_ok:
+                return {"status": "email_failed", "message": "Account created but API key email failed; check logs."}
         
+        return {"status": "success"}
+    
+    if event["type"] == "customer.subscription.deleted":
+        sub = event["data"]["object"]
+        sub_id = sub.get("id")
+        client = db.query(Client).filter(Client.stripe_subscription_id == sub_id).first()
+        if client:
+            client.stripe_subscription_status = "canceled"
+            db.commit()
+        return {"status": "success"}
+    
+    if event["type"] == "customer.subscription.updated":
+        sub = event["data"]["object"]
+        sub_id = sub.get("id")
+        status = (sub.get("status") or "active").lower()
+        client = db.query(Client).filter(Client.stripe_subscription_id == sub_id).first()
+        if client:
+            client.stripe_subscription_status = status
+            # Optionally sync tier from price
+            items = sub.get("items", {}).get("data", [])
+            if items and len(items) > 0:
+                price_id = items[0].get("price", {}).get("id")
+                if price_id:
+                    if price_id == settings.stripe_price_id_basic:
+                        client.tier = TierEnum.BASIC
+                    elif price_id == settings.stripe_price_id_standard:
+                        client.tier = TierEnum.STANDARD
+                    elif price_id in (settings.stripe_price_id_premium or "", settings.stripe_price_id_enterprise or ""):
+                        client.tier = TierEnum.PREMIUM
+            db.commit()
+        return {"status": "success"}
+    
+    if event["type"] == "invoice.payment_failed":
+        inv = event["data"]["object"]
+        sub_id = inv.get("subscription")
+        if sub_id:
+            client = db.query(Client).filter(Client.stripe_subscription_id == sub_id).first()
+            if client:
+                client.stripe_subscription_status = "past_due"
+                db.commit()
         return {"status": "success"}
     
     return {"status": "ignored"}

@@ -36,13 +36,13 @@ const response = await fetch(ttsApiUrl, ...)  // ❌ CORS blocked!
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all origins ✅
-    allow_credentials=True,
+    allow_credentials=False,  # Cannot use "*" with credentials=True in browsers
     allow_methods=["*"],  # Allows all methods ✅
     allow_headers=["*"],  # Allows all headers ✅
 )
 ```
 
-**This is correct!** The backend allows all origins.
+**This is correct!** The backend allows all origins. We use `allow_credentials=False` because browsers do not allow `allow_origins=["*"]` together with `allow_credentials=True`; we use API keys in headers, not cookies, so credentials are not needed.
 
 ---
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { MessageSquare, Zap, FileText, TrendingUp } from 'lucide-react'
+import { apiUrl } from '../api'
 
 interface DashboardProps {
   apiKey: string
@@ -29,10 +30,10 @@ function Dashboard({ apiKey }: DashboardProps) {
     const fetchData = async () => {
       try {
         const [clientRes, usageRes] = await Promise.all([
-          fetch('/api/clients/me', {
+          fetch(apiUrl('/api/clients/me'), {
             headers: { 'X-API-Key': apiKey }
           }),
-          fetch('/api/usage?days=30', {
+          fetch(apiUrl('/api/usage?days=30'), {
             headers: { 'X-API-Key': apiKey }
           })
         ])

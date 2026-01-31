@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Copy, Check, ExternalLink } from 'lucide-react'
+import { apiUrl } from '../api'
 
 interface SnippetProps {
   apiKey: string
@@ -20,7 +21,7 @@ function Snippet({ apiKey }: SnippetProps) {
   useEffect(() => {
     const fetchSnippet = async () => {
       try {
-        const res = await fetch('/api/embed-snippet', {
+        const res = await fetch(apiUrl('/api/embed-snippet'), {
           headers: { 'X-API-Key': apiKey }
         })
         if (res.ok) {

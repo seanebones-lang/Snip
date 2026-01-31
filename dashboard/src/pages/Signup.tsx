@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, CreditCard } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
+import { apiUrl } from '../api'
 
 function Signup() {
   const [tier, setTier] = useState('standard')
@@ -23,7 +24,7 @@ function Signup() {
     setError('')
 
     try {
-      const response = await fetch('/api/checkout', {
+      const response = await fetch(apiUrl('/api/checkout'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { apiUrl } from './api'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Landing from './pages/Landing'
@@ -40,7 +41,7 @@ function App() {
   useEffect(() => {
     if (apiKey) {
       // Check if onboarding completed
-      fetch('/api/config', {
+      fetch(apiUrl('/api/config'), {
         headers: { 'X-API-Key': apiKey }
       }).then(res => res.json()).then(data => {
         setShowWizard(!data.has_completed_onboarding)

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Save, X } from 'lucide-react'
+import { apiUrl } from '../api'
 
 interface FAQsProps {
   apiKey: string
@@ -29,7 +30,7 @@ function FAQs({ apiKey }: FAQsProps) {
 
   const fetchFAQs = async () => {
     try {
-      const res = await fetch('/api/faqs', {
+      const res = await fetch(apiUrl('/api/faqs'), {
         headers: { 'X-API-Key': apiKey }
       })
       if (res.ok) {
@@ -47,7 +48,7 @@ function FAQs({ apiKey }: FAQsProps) {
     if (!formData.question.trim() || !formData.answer.trim()) return
 
     try {
-      const res = await fetch('/api/faqs', {
+      const res = await fetch(apiUrl('/api/faqs'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,7 +76,7 @@ function FAQs({ apiKey }: FAQsProps) {
 
   const handleUpdate = async (id: string, data: Partial<FAQ>) => {
     try {
-      const res = await fetch(`/api/faqs/${id}`, {
+      const res = await fetch(apiUrl(`/api/faqs/${id}`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -99,7 +100,7 @@ function FAQs({ apiKey }: FAQsProps) {
     if (!confirm('Are you sure you want to delete this FAQ?')) return
 
     try {
-      const res = await fetch(`/api/faqs/${id}`, {
+      const res = await fetch(apiUrl(`/api/faqs/${id}`), {
         method: 'DELETE',
         headers: { 'X-API-Key': apiKey }
       })

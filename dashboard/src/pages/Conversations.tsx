@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { MessageSquare, Search } from 'lucide-react'
+import { apiUrl } from '../api'
 
 interface ConversationsProps {
   apiKey: string
@@ -33,7 +34,7 @@ function Conversations({ apiKey }: ConversationsProps) {
 
   const fetchConversations = async () => {
     try {
-      const res = await fetch('/api/conversations?limit=50', {
+      const res = await fetch(apiUrl('/api/conversations?limit=50'), {
         headers: { 'X-API-Key': apiKey }
       })
       if (res.ok) {

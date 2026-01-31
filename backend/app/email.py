@@ -1,11 +1,14 @@
+import logging
 import resend
 from .config import get_settings
 
 settings = get_settings()
 resend.api_key = settings.resend_api_key
+logger = logging.getLogger(__name__)
 
-def send_api_key_email(email: str, api_key: str, tier: str):
-    """Send API key to new customer"""
+
+def send_api_key_email(email: str, api_key: str, tier: str) -> bool:
+    """Send API key to new customer. Returns True if sent, False on failure."""
     try:
         resend.Emails.send({
             "from": "no-reply@mothership-ai.com",
@@ -56,6 +59,8 @@ def send_api_key_email(email: str, api_key: str, tier: str):
 </html>
             """
         })
-        print(f"API key email sent to {email}")
+        logger.info("API key email sent", extra={"email": email, "tier": tier})
+        return True
     except Exception as e:
-        print(f"Failed to send email to {email}: {e}")
+        logger.exception("Failed to send API key email to %s: %s", email, e)
+        return False

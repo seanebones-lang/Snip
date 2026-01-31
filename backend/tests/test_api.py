@@ -17,6 +17,17 @@ def test_health_check():
     assert data["service"] == "snip"
 
 
+def test_healthz_ready():
+    """Test readiness endpoint (DB + config checks)"""
+    response = client.get("/healthz/ready")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ready"
+    assert "checks" in data
+    assert "database" in data["checks"]
+    assert data["checks"]["database"] == "ok"
+
+
 def test_docs_endpoint():
     """Test API documentation endpoint"""
     response = client.get("/docs")

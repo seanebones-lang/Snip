@@ -32,3 +32,4 @@ mangum==0.17.0  # ASGI adapter for Vercel/Lambda serverless functions
 
 stripe==8.8.0
 resend==0.6.0  # for auto-send API key email
+slowapi==0.1.9  # rate limiting

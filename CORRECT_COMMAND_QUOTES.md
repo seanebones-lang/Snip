@@ -1,5 +1,9 @@
 # ⚠️ Quote Problem - Fixed Command
 
+**Status:** Complete. Use the commands below with straight quotes; pick the API URL that matches your deployment (Railway or white-label).
+
+---
+
 ## Your Command Problem
 
 **Your command has smart quotes (curly quotes) instead of straight quotes.**
@@ -18,8 +22,14 @@ The shell sees: `-d '{` and waits forever for the closing quote because the JSON
 
 ## ✅ CORRECT Command (Copy This EXACTLY)
 
+**Option A – Railway backend:**
 ```bash
 curl -X POST https://snip-production.up.railway.app/api/clients -H "Content-Type: application/json" -d '{"email":"nextelevenstudios@gmail.com","company_name":"Customer Company","tier":"premium"}'
+```
+
+**Option B – White-label backend** (if you use `BACKEND_PUBLIC_URL` / snip.mothership-ai.com):
+```bash
+curl -X POST https://snip.mothership-ai.com/api/clients -H "Content-Type: application/json" -d '{"email":"nextelevenstudios@gmail.com","company_name":"Customer Company","tier":"premium"}'
 ```
 
 **Key differences:**
@@ -65,7 +75,7 @@ curl -X POST https://snip-production.up.railway.app/api/clients -H "Content-Type
 
 ## Copy This Exact Command
 
-**Press Ctrl+C first, then paste this:**
+**Press Ctrl+C first, then paste this** (use Railway URL; if your backend is white-label, replace with `https://snip.mothership-ai.com`):
 
 ```bash
 curl -X POST https://snip-production.up.railway.app/api/clients -H "Content-Type: application/json" -d '{"email":"nextelevenstudios@gmail.com","company_name":"Customer Company","tier":"premium"}'
@@ -89,6 +99,10 @@ curl -X POST https://snip-production.up.railway.app/api/clients -H "Content-Type
 
 **Right now:**
 1. Press `Ctrl + C` (cancel hanging command)
-2. Copy the correct command above
+2. Copy the correct command above (Option A or B depending on your backend)
 3. Paste and press Enter
 4. Done! ✅
+
+---
+
+**Note:** Replace the API URL in the command with your actual backend URL (Railway or white-label) if different.

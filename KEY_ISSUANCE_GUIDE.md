@@ -31,7 +31,7 @@ curl -X POST https://snip-production.up.railway.app/api/clients \
   "email": "customer@example.com",
   "company_name": "Acme Corp",
   "tier": "standard",
-  "api_key": "ne11_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  "api_key": "snip_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 }
 ```
 
@@ -62,7 +62,7 @@ print(response.json())
 Your Snip by NextEleven account is ready!
 
 1. Go to https://snip.mothership-ai.com
-2. Enter your API key: ne11_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+2. Enter your API key: snip_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 3. Customize branding → Get embed code → Paste on site → Test!
 
 Support: support@mothership-ai.com
@@ -71,6 +71,6 @@ Support: support@mothership-ai.com
 ## Troubleshooting
 - **Duplicate email:** Returns 400 error
 - **No API key returned:** Check Stripe webhook; contact support
-- **Customer can't login:** Verify key format (ne11_xxx), check spam folder
+- **Customer can't login:** Verify key format (snip_xxx), check spam folder
 
 **Last Updated:** Jan 30, 2026

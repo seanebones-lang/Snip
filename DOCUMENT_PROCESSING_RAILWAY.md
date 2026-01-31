@@ -44,6 +44,13 @@ Yes — the bot **does** process and use this information. The flow is:
 
 **Tiers:** Only **Standard** and **Premium** clients get RAG; **Basic** tier does not (document upload is disabled for Basic). Same `client_id` is used for both storing chunks (upload) and retrieving (chat), so each client only sees their own documents.
 
-## Optional: ChromaDB on Railway
+## ChromaDB persistence on Railway
 
-- Default persist path is `./chroma_data`. On Railway the filesystem is **ephemeral** (data is lost on redeploy). For persistent document embeddings across deploys, you’d need a **volume** or external store (e.g. configure ChromaDB to use a persistent path via `CHROMA_PERSIST_DIRECTORY` and attach a Railway volume to that path). For now, re-uploading after a deploy is the workaround if you need documents to persist.
+- **Default:** Persist path is `./chroma_data` (or `CHROMA_PERSIST_DIRECTORY` env). On Railway the app filesystem is **ephemeral**: data is lost on redeploy, so embeddings are lost after each deploy.
+- **Supported behavior:** Re-upload documents after each deploy if you need RAG to work immediately. The dashboard Documents page and API remain available; only the vector store is cleared.
+- **Optional: persistent embeddings**  
+  To keep embeddings across deploys:
+  1. In Railway: create a **Volume** and mount it at a path (e.g. `/data`).
+  2. Set env: `CHROMA_PERSIST_DIRECTORY=/data/chroma_data` (or a subpath under the volume).
+  3. Ensure the backend uses that path (the app reads `CHROMA_PERSIST_DIRECTORY` from config).  
+  Then ChromaDB will persist under the volume and survive redeploys. If you do not attach a volume, treat “re-upload after deploy” as the supported behavior.

@@ -180,10 +180,19 @@ Add this to any HTML page:
 
 ## Deployment
 
+### Stripe webhooks (backend)
+Configure Stripe to send events to your backend. See **STRIPE_WEBHOOK_SETUP.md** for:
+- Endpoint URL: `https://YOUR_BACKEND/api/webhooks/stripe`
+- Required events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
+- Set `STRIPE_WEBHOOK_SECRET` from Stripe Dashboard
+
+### Dashboard (Vercel)
+Set **VITE_API_URL** in Vercel to your backend URL (e.g. `https://snip.mothership-ai.com`) so the dashboard calls your API. See `dashboard/README.md`.
+
 ### Backend (Railway/Render)
 1. Push to GitHub
 2. Connect to Railway/Render
-3. Set environment variables
+3. Set environment variables (see `backend/env.example.txt`)
 4. Deploy
 
 ### Widget (Vercel/CDN)

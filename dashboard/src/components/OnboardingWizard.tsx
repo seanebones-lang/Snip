@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react'
+import { apiUrl } from '../api'
 
 interface OnboardingWizardProps {
   apiKey: string
@@ -69,7 +70,7 @@ function OnboardingWizard({ apiKey, onComplete, isOpen, onClose }: OnboardingWiz
 
   const completeOnboarding = async () => {
     try {
-      const response = await fetch('/api/config', {
+      const response = await fetch(apiUrl('/api/config'), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

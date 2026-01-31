@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Send, Volume2, VolumeX } from 'lucide-react'
+import { apiUrl } from '../api'
 
 interface TestChatProps {
   apiKey: string
@@ -33,10 +34,10 @@ function TestChat({ apiKey }: TestChatProps) {
     const fetchConfig = async () => {
       try {
         const [configRes, clientRes] = await Promise.all([
-          fetch('/api/config', {
+          fetch(apiUrl('/api/config'), {
             headers: { 'X-API-Key': apiKey }
           }),
-          fetch('/api/clients/me', {
+          fetch(apiUrl('/api/clients/me'), {
             headers: { 'X-API-Key': apiKey }
           })
         ])
@@ -150,7 +151,7 @@ function TestChat({ apiKey }: TestChatProps) {
     setError(null)
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(apiUrl('/api/chat'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

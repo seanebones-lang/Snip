@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Save } from 'lucide-react'
+import { apiUrl } from '../api'
 
 interface BrandingProps {
   apiKey: string
@@ -40,7 +41,7 @@ function Branding({ apiKey }: BrandingProps) {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const res = await fetch('/api/config', {
+        const res = await fetch(apiUrl('/api/config'), {
           headers: { 'X-API-Key': apiKey }
         })
         if (res.ok) {
@@ -72,7 +73,7 @@ function Branding({ apiKey }: BrandingProps) {
     
     setSaving(true)
     try {
-      const res = await fetch('/api/config', {
+      const res = await fetch(apiUrl('/api/config'), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -362,7 +363,7 @@ function Branding({ apiKey }: BrandingProps) {
                   try {
                     const updateData: any = { tts_voice: ttsVoice }
                     
-                    const res = await fetch('/api/config', {
+                    const res = await fetch(apiUrl('/api/config'), {
                       method: 'PATCH',
                       headers: {
                         'Content-Type': 'application/json',
