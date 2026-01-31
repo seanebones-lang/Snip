@@ -17,7 +17,7 @@ function Help() {
     {
       title: 'Chat not responding',
       content: `1. Check browser console (F12) for API errors
-2. Verify data-api-url points to https://snip-production.up.railway.app
+2. Verify data-api-url points to https://snip.mothership-ai.com
 3. Test your Client ID with Test Chat page
 4. Check if your site blocks external scripts
 5. Verify Stripe subscription is active (Dashboard → Usage)`

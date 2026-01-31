@@ -44,7 +44,9 @@ class Settings(BaseSettings):
     # ChromaDB
     chroma_persist_directory: str = "./chroma_data"
     
-    # Widget CDN URL (where widget.js is hosted)
+    # White-label URLs in snippet (no Railway in data-api-url). Override with env if needed.
+    # widget_cdn_url default kept so existing installs keep working; set WIDGET_CDN_URL for white-label.
+    backend_public_url: str = "https://snip.mothership-ai.com"
     widget_cdn_url: str = "https://widget-sigma-sage.vercel.app"
 
 

@@ -48,7 +48,7 @@ function Snippet({ apiKey }: SnippetProps) {
     const codeToCopy = snippet?.html || `<script 
   src="https://widget-sigma-sage.vercel.app/widget.js" 
   data-client-id="YOUR_CLIENT_ID"
-  data-api-url="https://snip-production.up.railway.app"
+  data-api-url="https://snip.mothership-ai.com"
   async>
 </script>`
     if (!codeToCopy) return
@@ -82,7 +82,7 @@ function Snippet({ apiKey }: SnippetProps) {
     `<script 
   src="https://widget-sigma-sage.vercel.app/widget.js" 
   data-client-id="YOUR_CLIENT_ID"
-  data-api-url="https://snip-production.up.railway.app"
+  data-api-url="https://snip.mothership-ai.com"
   async>
 </script>` : null
   

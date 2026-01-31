@@ -21,7 +21,7 @@ const platforms = [
   <!-- PASTE SNIPPET HERE -->
   <script src="https://widget-sigma-sage.vercel.app/widget.js" 
           data-client-id="YOUR_CLIENT_ID"
-          data-api-url="https://snip-production.up.railway.app" 
+          data-api-url="https://snip.mothership-ai.com" 
           async></script>
 </body>
 </html>`
@@ -36,7 +36,7 @@ const platforms = [
 <!-- PASTE SNIPPET HERE -->
 <script src="https://widget-sigma-sage.vercel.app/widget.js" 
         data-client-id="YOUR_CLIENT_ID"
-        data-api-url="https://snip-production.up.railway.app" 
+        data-api-url="https://snip.mothership-ai.com" 
         async></script>
 </body>
 </html>`
@@ -50,7 +50,7 @@ const platforms = [
 <!-- PASTE SNIPPET HERE -->
 <script src="https://widget-sigma-sage.vercel.app/widget.js" 
         data-client-id="YOUR_CLIENT_ID"
-        data-api-url="https://snip-production.up.railway.app" 
+        data-api-url="https://snip.mothership-ai.com" 
         async></script>
 
 </body>
@@ -64,7 +64,7 @@ const platforms = [
 <!-- PASTE SNIPPET HERE -->
 <script src="https://widget-sigma-sage.vercel.app/widget.js" 
         data-client-id="YOUR_CLIENT_ID"
-        data-api-url="https://snip-production.up.railway.app" 
+        data-api-url="https://snip.mothership-ai.com" 
         async></script>`
   },
   {
@@ -73,7 +73,7 @@ const platforms = [
     example: `<!-- Wix HTML element -->
 <script src="https://widget-sigma-sage.vercel.app/widget.js" 
         data-client-id="YOUR_CLIENT_ID"
-        data-api-url="https://snip-production.up.railway.app" 
+        data-api-url="https://snip.mothership-ai.com" 
         async></script>`
   }
 ]
