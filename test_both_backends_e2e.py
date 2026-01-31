@@ -77,7 +77,7 @@ async def test_tts_flow(token, test_name="TTS Flow"):
     try:
         async with websockets.connect(
             'wss://api.x.ai/v1/realtime',
-            additional_headers={'Authorization': f'Bearer {token}'},
+            extra_headers={'Authorization': f'Bearer {token}'},
             ping_interval=20,
             ping_timeout=10
         ) as ws:

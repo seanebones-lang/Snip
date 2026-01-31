@@ -68,6 +68,7 @@ class ConfigUpdate(BaseModel):
     ai_api_key: Optional[str] = Field(None, description="Your AI API key (bring your own key)")
     ai_model: Optional[str] = Field(None, description="AI model to use (e.g., 'grok-3-fast', 'gpt-4', 'claude-3')")
     tts_voice: Optional[str] = Field(None, description="TTS voice for xAI: 'Ara', 'Leo', 'Rex', 'Sal', 'Eve' (default: 'Ara')")
+    has_completed_onboarding: Optional[bool] = None
 
 
 class ConfigResponse(BaseModel):
@@ -93,6 +94,7 @@ class ConfigResponse(BaseModel):
     ai_model: Optional[str] = Field(None, description="AI model selected")
     ai_api_key_set: bool = Field(default=False, description="Whether AI API key is configured (never returns actual key)")
     tts_voice: Optional[str] = Field(None, description="TTS voice selected (only applies to xAI provider)")
+    has_completed_onboarding: bool
     
     class Config:
         from_attributes = True

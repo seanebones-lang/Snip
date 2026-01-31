@@ -10,7 +10,7 @@
 - ✅ Changed `data["token"]` → `data["value"]` (correct X.AI response format)
 
 **2. Updated `generate_xai_tts_audio()` function:**
-- ✅ Changed `extra_headers` → `additional_headers` (correct websockets parameter)
+- ✅ Use `extra_headers` for websockets 12.x (correct parameter)
 - ✅ Replaced old API flow (`user.text` → `assistant.audio`)
 - ✅ Implemented correct API flow:
   1. `session.update` → wait for `session.updated`
@@ -27,8 +27,8 @@
 # Wrong token field
 return data["token"]  # ❌
 
-# Wrong WebSocket headers
-extra_headers={"Authorization": f"Bearer {token}"}  # ❌
+# Wrong WebSocket headers (for websockets 12.x)
+additional_headers={"Authorization": f"Bearer {token}"}  # ❌
 
 # Wrong API flow
 {"type": "user.text", "data": {"text": text}}  # ❌
@@ -40,8 +40,8 @@ extra_headers={"Authorization": f"Bearer {token}"}  # ❌
 # Correct token field
 return data["value"]  # ✅
 
-# Correct WebSocket headers
-additional_headers={"Authorization": f"Bearer {token}"}  # ✅
+# Correct WebSocket headers (websockets 12.x)
+extra_headers={"Authorization": f"Bearer {token}"}  # ✅
 
 # Correct API flow
 {"type": "conversation.item.create", "item": {...}}  # ✅

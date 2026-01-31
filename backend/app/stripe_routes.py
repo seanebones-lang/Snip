@@ -80,24 +80,50 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         if tier_str == "enterprise":
             tier_str = "premium"
         
-        if not email or not company_name or not tier_str:
+        if not tier_str:
             return {"status": "missing_metadata"}
 
         if tier_str not in {"basic", "standard", "premium"}:
             return {"status": "invalid_tier"}
         
         tier = TierEnum[tier_str.upper()]
+        stripe_customer_id = session.get('customer')
+        stripe_subscription_id = session.get('subscription')
         
-        # Check existing
-        existing = db.query(Client).filter(Client.email == email).first()
+        # Prefer matching by Stripe customer id to avoid duplicates
+        existing = None
+        if stripe_customer_id:
+            existing = db.query(Client).filter(Client.stripe_customer_id == stripe_customer_id).first()
+        if not existing and email:
+            existing = db.query(Client).filter(Client.email == email).first()
+
         if existing:
+            if not email:
+                email = existing.email
+            if not company_name:
+                company_name = existing.company_name
+
+            # Rotate key for upgrades so customer always has a valid key
+            api_key = generate_api_key()
+            api_key_hash = hash_api_key(api_key)
+
+            existing.email = email
+            if company_name:
+                existing.company_name = company_name
             existing.tier = tier
-            existing.stripe_customer_id = session['customer']
-            existing.stripe_subscription_id = session['subscription']
+            existing.api_key = api_key[:16] + "..."
+            existing.api_key_hash = api_key_hash
+            if stripe_customer_id:
+                existing.stripe_customer_id = stripe_customer_id
+            if stripe_subscription_id:
+                existing.stripe_subscription_id = stripe_subscription_id
             existing.stripe_subscription_status = 'active'
             db.commit()
-            send_api_key_email(email, existing.api_key[:16] + " (upgraded)", tier_str)
+            send_api_key_email(email, api_key, tier_str)
         else:
+            if not email or not company_name:
+                return {"status": "missing_metadata"}
+
             api_key = generate_api_key()
             api_key_hash = hash_api_key(api_key)
             
@@ -107,8 +133,8 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 tier=tier,
                 api_key=api_key[:16] + "...",
                 api_key_hash=api_key_hash,
-                stripe_customer_id=session['customer'],
-                stripe_subscription_id=session['subscription'],
+                stripe_customer_id=stripe_customer_id,
+                stripe_subscription_id=stripe_subscription_id,
                 stripe_subscription_status='active'
             )
             db.add(client)

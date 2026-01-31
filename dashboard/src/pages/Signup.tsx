@@ -70,16 +70,18 @@ function Signup() {
     }
   ]
 
+  const selectedPlan = tiers.find((plan) => plan.id === tier) ?? tiers[1]
+
   return (
     <div className="signup-container">
       <div className="signup-card">
-        <h1 style={{ fontSize: 36, fontWeight: 700, marginBottom: 16 }}>Custom AI Chatbots<br/><span style={{ fontWeight: 400, fontSize: 24, color: 'var(--text-muted)' }}>$25/month</span></h1>
-        <p style={{ color: 'var(--text-muted)', marginBottom: 32 }}>
-          Choose your plan and get your chatbot live in minutes.
-        </p>
+        <h1 className="signup-title">Custom AI Chatbots</h1>
+        <p className="signup-price">{selectedPlan.name} • {selectedPlan.price}</p>
+        <p className="signup-note">Billed monthly. Cancel anytime.</p>
+        <p className="signup-subtitle">Choose your plan and get your chatbot live in minutes.</p>
 
         {error && (
-          <div className="alert alert-warning" style={{ marginBottom: 24 }}>
+          <div className="alert alert-warning signup-alert">
             {error}
           </div>
         )}
@@ -111,7 +113,7 @@ function Signup() {
 
           <div className="form-group">
             <label className="form-label">Plan</label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
+            <div className="plan-grid">
               {tiers.map((plan) => (
                 <label key={plan.id} className={`plan-card ${tier === plan.id ? 'selected' : ''}`}>
                   <input
@@ -120,14 +122,14 @@ function Signup() {
                     value={plan.id}
                     checked={tier === plan.id}
                     onChange={(e) => setTier(e.target.value)}
-                    style={{ display: 'none' }}
+                    className="plan-card-input"
                   />
-                  <div>
-                    <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>{plan.name}</div>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--primary)', marginBottom: 12 }}>{plan.price}</div>
-                    <ul style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 16 }}>
+                  <div className="plan-card-content">
+                    <div className="plan-card-title">{plan.name}</div>
+                    <div className="plan-card-price">{plan.price}</div>
+                    <ul className="plan-card-features">
                       {plan.features.map((feature) => (
-                        <li key={feature} style={{ marginBottom: 4 }}>&bull; {feature}</li>
+                        <li key={feature}>&bull; {feature}</li>
                       ))}
                     </ul>
                   </div>
@@ -138,17 +140,16 @@ function Signup() {
 
           <button 
             type="submit" 
-            className="btn btn-primary" 
-            style={{ width: '100%', marginTop: 24 }}
+            className="btn btn-primary signup-submit"
             disabled={loading || !email || !companyName}
           >
-            <CreditCard size={20} style={{ marginRight: 8 }} />
+            <CreditCard size={20} />
             {loading ? 'Creating Checkout...' : 'Get Started Now'}
             <ArrowRight size={20} />
           </button>
         </form>
 
-        <p style={{ marginTop: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
+        <p className="signup-footer">
           Already have an API key? <a href="/login">Login here</a> | Questions? <a href="mailto:support@mothership-ai.com">support@mothership-ai.com</a>
         </p>
       </div>

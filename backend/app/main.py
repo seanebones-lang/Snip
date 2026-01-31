@@ -116,7 +116,7 @@ async def generate_tts_audio(text: str, api_key: str, voice: str = "Ara") -> Opt
         # Step 2: Connect via WebSocket
         async with websockets.connect(
             TTS_REALTIME_WS,
-            additional_headers={"Authorization": f"Bearer {token}"},
+            extra_headers={"Authorization": f"Bearer {token}"},
             ping_interval=20,
             ping_timeout=10
         ) as ws:
@@ -201,15 +201,15 @@ async def generate_tts_audio(text: str, api_key: str, voice: str = "Ara") -> Opt
                     obj = json.loads(msg)
                     msg_type = obj.get("type")
                     
-                    if msg_type == "response.output_audio.delta":
-                        # Audio comes in delta field as base64
-                        delta = obj.get("delta")
-                        if delta:
+                    if msg_type in ["response.output_audio.delta", "response.audio.delta"]:
+                        # Audio comes in delta field as base64 (some APIs use "audio" instead)
+                        delta = obj.get("delta") or obj.get("audio") or obj.get("data")
+                        if isinstance(delta, str) and delta:
                             audio_bytes = base64.b64decode(delta)
                             audio_chunks.append(audio_bytes)
                             print(f"[TTS] Received audio delta: {len(audio_bytes)} bytes")
                     
-                    elif msg_type in ["response.output_audio.done", "response.done"]:
+                    elif msg_type in ["response.output_audio.done", "response.audio.done", "response.done"]:
                         print(f"[TTS] Audio generation complete")
                         break
                     

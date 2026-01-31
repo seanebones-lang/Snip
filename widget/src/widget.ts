@@ -35,6 +35,7 @@ interface Message {
 class SnipWidget {
   private clientId: string
   private apiUrl: string
+  private allowBrowserTts: boolean
   private config: WidgetConfig | null = null
   private container: HTMLElement | null = null
   private isOpen: boolean = false
@@ -42,9 +43,10 @@ class SnipWidget {
   private isLoading: boolean = false
   private currentAudio: HTMLAudioElement | null = null // Track current audio for cleanup
 
-  constructor(clientId: string, apiUrl: string) {
+  constructor(clientId: string, apiUrl: string, allowBrowserTts: boolean = false) {
     this.clientId = clientId
     this.apiUrl = apiUrl
+    this.allowBrowserTts = allowBrowserTts
     this.init()
   }
 
@@ -567,11 +569,13 @@ class SnipWidget {
         this.announceAudioState('error')
         
         // Error recovery: Fallback to text-to-speech if text available
-        if (fallbackText) {
+        if (fallbackText && this.allowBrowserTts) {
           console.log('[TTS] Falling back to browser TTS due to audio playback error')
           setTimeout(() => {
             this.fallbackBrowserTTS(fallbackText)
           }, 100)
+        } else if (fallbackText) {
+          console.warn('[TTS] Audio playback failed and browser TTS fallback is disabled')
         }
       })
       
@@ -589,9 +593,11 @@ class SnipWidget {
         this.currentAudio = null
         
         // Error recovery: Fallback to text-to-speech if text available
-        if (fallbackText) {
+        if (fallbackText && this.allowBrowserTts) {
           console.log('[TTS] Falling back to browser TTS due to play() error')
           this.fallbackBrowserTTS(fallbackText)
+        } else if (fallbackText) {
+          console.warn('[TTS] Audio play() failed and browser TTS fallback is disabled')
         }
       })
       
@@ -602,9 +608,11 @@ class SnipWidget {
       this.currentAudio = null
       
       // Error recovery: Fallback to text-to-speech
-      if (fallbackText) {
+      if (fallbackText && this.allowBrowserTts) {
         console.log('[TTS] Falling back to browser TTS due to exception')
         this.fallbackBrowserTTS(fallbackText)
+      } else if (fallbackText) {
+        console.warn('[TTS] Audio playback exception and browser TTS fallback is disabled')
       }
     }
   }
@@ -682,13 +690,20 @@ class SnipWidget {
 
   private async generateAndPlayAudio(text: string) {
     // TTS should come from backend as audio_url (base64 data URL)
-    // If backend doesn't provide audio_url, use browser TTS fallback
+    if (!this.allowBrowserTts) {
+      console.warn('[TTS] No audio_url and browser TTS fallback is disabled')
+      return
+    }
     // No external API calls from browser (prevents CORS issues)
     console.log('[TTS] Using browser TTS fallback (backend should provide audio_url)')
     this.fallbackBrowserTTS(text)
   }
 
   private fallbackBrowserTTS(text: string) {
+    if (!this.allowBrowserTts) {
+      console.warn('[TTS] Browser TTS fallback disabled')
+      return
+    }
     if (!('speechSynthesis' in window)) {
       console.warn('[TTS] Browser speech synthesis not supported')
       return
@@ -892,6 +907,7 @@ class SnipWidget {
   
   if (currentScript) {
     const clientId = currentScript.getAttribute('data-client-id')
+    const allowBrowserTts = currentScript.getAttribute('data-allow-browser-tts') === 'true'
     // Determine API URL - use data-api-url or default to script origin
     const scriptSrc = currentScript.src
     const apiUrl = currentScript.getAttribute('data-api-url') || 
@@ -901,10 +917,10 @@ class SnipWidget {
       // Wait for DOM to be ready
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
-          new SnipWidget(clientId, apiUrl)
+          new SnipWidget(clientId, apiUrl, allowBrowserTts)
         })
       } else {
-        new SnipWidget(clientId, apiUrl)
+        new SnipWidget(clientId, apiUrl, allowBrowserTts)
       }
     }
   }
