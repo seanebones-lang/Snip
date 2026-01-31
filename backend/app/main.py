@@ -556,9 +556,9 @@ Guidelines:
 - If you don't know something, say so
 """
     
-    # For premium clients with RAG, add document context
+    # For standard+ clients with RAG, add document context
     rag_context = ""
-    if client.tier == TierEnum.PREMIUM:
+    if client.tier != TierEnum.BASIC:
         try:
             from .rag import retrieve_context
             rag_context = await retrieve_context(client.id, request.message) or ""
@@ -855,14 +855,14 @@ async def upload_document(
     db: Session = Depends(get_db)
 ):
     """
-    Upload a document for RAG (Premium only)
+    Upload a document for RAG (Standard+ only)
     Processing happens asynchronously on Railway
     """
     # Check tier
-    if client.tier != TierEnum.PREMIUM:
+    if client.tier == TierEnum.BASIC:
         raise HTTPException(
             status_code=403,
-            detail="Document upload requires Premium tier"
+            detail="Document upload requires Standard or Enterprise tier"
         )
     
     # Validate file type - Support multiple formats
