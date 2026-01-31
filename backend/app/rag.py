@@ -267,6 +267,8 @@ async def process_document(
     Process a document: extract text, chunk it, and store embeddings
     Returns the number of chunks created
     """
+    # Ensure persist directory exists (Railway/ephemeral fs)
+    os.makedirs(settings.chroma_persist_directory, exist_ok=True)
     # Extract text
     text = extract_text(content, file_type)
     

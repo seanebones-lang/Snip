@@ -2,7 +2,7 @@
 Snip - Multi-tenant Chatbot Snippet Service
 Main FastAPI Application
 """
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Header, Request, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -857,14 +857,14 @@ async def process_document_background(
 
 @app.post("/api/documents", response_model=DocumentResponse)
 async def upload_document(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     client: Client = Depends(get_client_from_api_key),
     db: Session = Depends(get_db)
 ):
     """
     Upload a document for RAG (Standard+ only)
-    Processing happens asynchronously on Railway
+    Processing runs in-request so documents complete on Railway (BackgroundTasks
+    often never run after response on PaaS, leaving docs stuck in PENDING).
     """
     # Check tier
     if client.tier == TierEnum.BASIC:
@@ -930,29 +930,49 @@ async def upload_document(
                    "Large files are processed asynchronously and may take several minutes."
         )
     
-    # Create document record with PENDING status
+    # Create document record and process in-request (so Railway actually runs it)
     doc = Document(
         client_id=client.id,
         filename=file.filename,
         file_type=file_type,
         file_size=file_size,
-        status=DocumentStatus.PENDING  # Start as PENDING, will update to PROCESSING -> COMPLETED
+        status=DocumentStatus.PENDING,
     )
     db.add(doc)
     db.commit()
     db.refresh(doc)
     
-    # Queue document for background processing on Railway
-    background_tasks.add_task(
-        process_document_background,
-        client_id=client.id,
-        doc_id=doc.id,
-        content=contents,
-        file_type=file_type,
-        filename=file.filename
-    )
+    # Process now so status is COMPLETED/FAILED before we return (BackgroundTasks
+    # often never run after response on Railway, leaving docs stuck in PENDING)
+    doc.status = DocumentStatus.PROCESSING
+    db.commit()
+    try:
+        from .rag import process_document
+        chunk_count = await process_document(
+            client_id=client.id,
+            doc_id=doc.id,
+            content=contents,
+            file_type=file_type,
+            filename=file.filename,
+        )
+        doc.status = DocumentStatus.COMPLETED
+        doc.chunk_count = chunk_count
+        doc.processed_at = datetime.utcnow()
+        db.commit()
+        db.refresh(doc)
+        print(f"[Documents] Processed {doc.filename}: {chunk_count} chunks")
+    except Exception as e:
+        db.rollback()
+        doc = db.query(Document).filter(Document.id == doc.id).first()
+        if doc:
+            doc.status = DocumentStatus.FAILED
+            doc.error_message = str(e)[:500]
+            db.commit()
+            db.refresh(doc)
+        print(f"[Documents] Failed {file.filename}: {e}")
+        import traceback
+        traceback.print_exc()
     
-    # Return immediately with PENDING status
     return doc
 
 
