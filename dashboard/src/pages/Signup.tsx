@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowRight, CreditCard } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 
 function Signup() {
   const [tier, setTier] = useState('standard')
@@ -7,6 +8,14 @@ function Signup() {
   const [companyName, setCompanyName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [searchParams] = useSearchParams()
+
+  useEffect(() => {
+    const selectedTier = searchParams.get('tier')?.toLowerCase()
+    if (selectedTier && ['basic', 'standard', 'premium'].includes(selectedTier)) {
+      setTier(selectedTier)
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

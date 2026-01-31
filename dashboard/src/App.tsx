@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import Layout from './components/Layout'
 import Login from './pages/Login'
+import Landing from './pages/Landing'
 import Signup from './pages/Signup'
 import Success from './pages/Success'
 import Help from './pages/Help'
@@ -52,7 +53,7 @@ function App() {
   if (!apiKey) {
     return (
       <Routes>
-        <Route path="/" element={<Signup />} />
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login onLogin={handleLogin} />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/success" element={<Success />} />

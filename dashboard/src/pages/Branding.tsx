@@ -331,13 +331,13 @@ function Branding({ apiKey }: BrandingProps) {
           </div>
 
           <div className="card">
-            <h2 className="card-title">Voice Settings</h2>
+            <h2 className="card-title">xAI Voice Settings</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
-              Choose the voice for your chatbot responses. The voice speaks all responses automatically.
+              Choose the xAI voice for your chatbot responses. The voice speaks all responses automatically.
             </p>
             
             <div className="form-group" style={{ marginBottom: 20 }}>
-              <label className="form-label">Voice for Text-to-Speech</label>
+              <label className="form-label">xAI Voice for Text-to-Speech</label>
               <select
                 className="form-input"
                 value={ttsVoice}
@@ -350,7 +350,7 @@ function Branding({ apiKey }: BrandingProps) {
                 <option value="Eve">Eve (Female, Clear)</option>
               </select>
               <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>
-                Select the voice that will speak all chatbot responses. Default: Ara
+                Select the xAI voice that will speak all chatbot responses. Default: Ara
               </p>
             </div>
             

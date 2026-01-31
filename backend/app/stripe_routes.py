@@ -20,7 +20,7 @@ class CheckoutRequest(BaseModel):
     email: str
     company_name: str
 
-@router.post("/api/checkout")
+@router.post("/checkout")
 async def create_checkout_session(request: CheckoutRequest):
     tier = request.tier.strip().lower()
     if tier == "enterprise":
@@ -56,7 +56,7 @@ async def create_checkout_session(request: CheckoutRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/api/webhooks/stripe")
+@router.post("/webhooks/stripe")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
