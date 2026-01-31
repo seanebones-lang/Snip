@@ -102,14 +102,16 @@ function OnboardingWizard({ apiKey, onComplete, isOpen, onClose }: OnboardingWiz
       padding: '20px'
     }}>
       <div style={{
-        background: 'white',
+        background: 'var(--bg-card)',
+        color: 'var(--text)',
         borderRadius: 16,
         maxWidth: 600,
         maxHeight: '90vh',
         overflow: 'hidden',
+        border: '1px solid var(--border)',
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
       }}>
-        <div style={{ padding: '24px 32px', borderBottom: '1px solid #e5e7eb' }}>
+        <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--primary)' }}>
               {currentStep}/{steps.length}
@@ -125,10 +127,10 @@ function OnboardingWizard({ apiKey, onComplete, isOpen, onClose }: OnboardingWiz
           {steps[currentStep - 1].content}
         </div>
 
-        <div style={{ padding: '24px 32px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '24px 32px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button 
             onClick={onClose}
-            style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: 'white' }}
+            style={{ padding: '8px 16px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text)' }}
           >
             <X size={16} />
             Skip
@@ -138,7 +140,7 @@ function OnboardingWizard({ apiKey, onComplete, isOpen, onClose }: OnboardingWiz
             {currentStep > 1 && (
               <button 
                 onClick={() => setCurrentStep(currentStep - 1)}
-                style={{ padding: '12px 24px', border: '1px solid #d1d5db', borderRadius: 8, background: 'white' }}
+                style={{ padding: '12px 24px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text)' }}
               >
                 <ChevronLeft size={16} />
                 Back
