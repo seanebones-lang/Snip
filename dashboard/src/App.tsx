@@ -74,6 +74,7 @@ function App() {
           <Route path="/faqs" element={<FAQs apiKey={apiKey} />} />
           <Route path="/documents" element={<Documents apiKey={apiKey} />} />
           <Route path="/usage" element={<Usage apiKey={apiKey} />} />
+          <Route path="/help" element={<Help />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>

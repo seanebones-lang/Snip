@@ -23,6 +23,8 @@ body {
   background: var(--bg-dark);
   color: var(--text);
   min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 /* Scrollbar */
@@ -57,23 +59,48 @@ body {
   padding: 24px;
   display: flex;
   flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .logo {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
-  margin-bottom: 48px;
+  margin-bottom: 8px;
   background: linear-gradient(135deg, var(--primary) 0%, #ec4899 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
+.sidebar-subtitle {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 28px;
+}
+
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
   flex: 1;
+}
+
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nav-title {
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 4px 0;
+  padding-left: 12px;
 }
 
 .nav-link {
@@ -85,6 +112,7 @@ body {
   color: var(--text-muted);
   text-decoration: none;
   transition: all 0.2s;
+  font-weight: 500;
 }
 
 .nav-link:hover {
@@ -93,14 +121,50 @@ body {
 }
 
 .nav-link.active {
-  background: var(--primary);
-  color: white;
+  background: rgba(99, 102, 241, 0.18);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.35);
+}
+
+.nav-link-button {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: transparent;
+}
+
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.support-link {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-decoration: none;
+  padding: 0 8px;
+}
+
+.support-link:hover {
+  color: var(--text);
 }
 
 .main-content {
   flex: 1;
-  padding: 32px;
+  padding: 32px 40px;
   overflow-y: auto;
+}
+
+.content-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+h1, h2, h3 {
+  line-height: 1.2;
 }
 
 /* Cards */
@@ -120,7 +184,7 @@ body {
 }
 
 .card-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
 }
 
@@ -403,11 +467,28 @@ textarea.form-input {
     border-right: none;
     border-bottom: 1px solid var(--border);
     padding: 16px;
+    position: relative;
+    height: auto;
   }
   
   .nav {
     flex-direction: row;
     overflow-x: auto;
+    gap: 12px;
+  }
+
+  .nav-section {
+    min-width: 180px;
+  }
+
+  .nav-title {
+    padding-left: 0;
+  }
+
+  .sidebar-footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
   }
   
   .form-row {
