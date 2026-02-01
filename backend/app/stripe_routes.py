@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 from typing import Dict
@@ -13,6 +14,7 @@ from .email import send_api_key_email
 
 router = APIRouter()
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 stripe.api_key = settings.stripe_secret_key
 
@@ -81,6 +83,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
+        session_id = session.get('id', '')
         metadata = session.get('metadata', {})
         tier_str = (metadata.get('tier') or "").lower()
         email = metadata.get('email') or session.get('customer_email')
@@ -99,11 +102,11 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         stripe_customer_id = session.get('customer')
         stripe_subscription_id = session.get('subscription')
         
-        # Prefer matching by Stripe customer id to avoid duplicates
+        # Match existing account by EMAIL only. Do not match by Stripe customer id:
+        # Stripe can reuse the same customer (same browser/card) for a different signup,
+        # which would incorrectly attach a new purchase to an existing account (same dashboard).
         existing = None
-        if stripe_customer_id:
-            existing = db.query(Client).filter(Client.stripe_customer_id == stripe_customer_id).first()
-        if not existing and email:
+        if email:
             existing = db.query(Client).filter(Client.email == email).first()
 
         if existing:
@@ -130,21 +133,27 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             db.commit()
             email_ok = send_api_key_email(email, api_key, tier_str)
             if not email_ok:
+                logger.warning("Stripe checkout.session.completed: API key email failed for session_id=%s email=%s", session_id, email)
                 return {"status": "email_failed", "message": "Account created but API key email failed; check logs."}
+            logger.info("Stripe checkout.session.completed: account updated and API key email sent session_id=%s email=%s", session_id, email)
         else:
             if not email or not company_name:
                 return {"status": "missing_metadata"}
 
             api_key = generate_api_key()
             api_key_hash = hash_api_key(api_key)
-            
+            # If Stripe reused a customer id from another Snip account, don't store it on this new client (unique constraint)
+            link_stripe_customer_id = stripe_customer_id
+            if link_stripe_customer_id and db.query(Client).filter(Client.stripe_customer_id == link_stripe_customer_id).first():
+                link_stripe_customer_id = None
+
             client = Client(
                 email=email,
                 company_name=company_name,
                 tier=tier,
                 api_key=api_key[:16] + "...",
                 api_key_hash=api_key_hash,
-                stripe_customer_id=stripe_customer_id,
+                stripe_customer_id=link_stripe_customer_id,
                 stripe_subscription_id=stripe_subscription_id,
                 stripe_subscription_status='active'
             )
